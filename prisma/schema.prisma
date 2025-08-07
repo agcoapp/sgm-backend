@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Utilisateur {
+  id                     Int       @id @default(autoincrement())
+  clerkId                String?   @unique // ID Clerk pour sync
+  numero_adhesion        String?   @unique // Numéro d'adhésion autogénéré
+  
+  // Informations personnelles
+  prenoms                String    // Prénoms
+  nom                    String    // Nom de famille  
+  photo_profil_url       String?   // Photo de profil (uploadée ou prise sur place)
+  date_naissance         DateTime? // Date de naissance
+  lieu_naissance         String?   // Lieu de naissance
+  adresse                String?   // Adresse
+  profession             String?   // Profession
+  ville_residence        String?   // Ville de résidence
+  date_entree_congo      DateTime? // Date d'entrée au Congo
+  employeur_ecole        String?   // Employeur/Université/École
+  telephone              String    // Numéro de téléphone (requis)
+  
+  // Informations document d'identité
+  type_piece_identite    TypePiece? // Type de pièce d'identité
+  numero_piece_identite  String?   @unique // Numéro de la pièce d'identité
+  date_emission_piece    DateTime? // Date d'émission de la pièce d'identité
+  photo_piece_url        String?   // Photo du document d'identité
+  
+  // Informations familiales
+  prenom_conjoint        String?   // Prénom du conjoint
+  nom_conjoint           String?   // Nom du conjoint
+  nombre_enfants         Int?      // Nombre d'enfants
+  
+  // Champs système
+  email                  String?   @unique // Email optionnel (pour compte)
+  statut                 Statut    @default(EN_ATTENTE)
+  role                   Role      @default(MEMBRE)
+  code_formulaire        String?   @unique
+  url_qr_code            String?
+  carte_emise_le         DateTime?
+  cree_le                DateTime  @default(now())
+  modifie_le             DateTime  @updatedAt
+
+  // Relations
+  signatures             Signature[]
+  journaux_audit         JournalAudit[]
+  formulaires_adhesion   FormulaireAdhesion[]
+}
+
+model Signature {
+  id                 Int       @id @default(autoincrement())
+  id_president       Int
+  url_signature      String
+  cloudinary_id      String    // Pour supprimer de Cloudinary si besoin
+  est_active         Boolean   @default(true)
+  telecharge_le      DateTime  @default(now())
+
+  utilisateur        Utilisateur @relation(fields: [id_president], references: [id])
+}
+
+model JournalAudit {
+  id              Int       @id @default(autoincrement())
+  id_utilisateur  Int?
+  action          String    // ADHESION, APPROUVER, REJETER, ASSIGNER_CODE, etc.
+  details         Json?     // Détails supplémentaires
+  adresse_ip      String?
+  agent_utilisateur String?
+  cree_le         DateTime  @default(now())
+
+  utilisateur     Utilisateur? @relation(fields: [id_utilisateur], references: [id])
+}
+
+model FormulaireAdhesion {
+  id                   Int       @id @default(autoincrement())
+  id_utilisateur       Int
+  numero_version       Int       // Version 1, 2, 3, etc.
+  url_image_formulaire String    // URL de l'image générée du formulaire
+  donnees_snapshot     Json      // Snapshot des données utilisées pour générer cette version
+  est_version_active   Boolean   @default(true) // Version actuelle (une seule active par utilisateur)
+  cree_le             DateTime   @default(now())
+  
+  utilisateur         Utilisateur @relation(fields: [id_utilisateur], references: [id])
+  
+  @@unique([id_utilisateur, numero_version])
+}
+
+enum Statut {
+  EN_ATTENTE
+  APPROUVE
+  REJETE
+}
+
+enum Role {
+  MEMBRE
+  SECRETAIRE_GENERALE
+  PRESIDENT
+}
+
+enum TypePiece {
+  CARTE_CONSULAIRE
+  PASSEPORT
+}

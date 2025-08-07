@@ -1,0 +1,49 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: sgm_db
+      POSTGRES_USER: sgm_user
+      POSTGRES_PASSWORD: sgm_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sgm_user -d sgm_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Test database for development
+  postgres-test:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: sgm_test_db
+      POSTGRES_USER: sgm_test_user
+      POSTGRES_PASSWORD: sgm_test_password
+    ports:
+      - "5433:5432"
+    profiles:
+      - test
+
+volumes:
+  postgres_data:
