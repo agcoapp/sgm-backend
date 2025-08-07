@@ -27,7 +27,7 @@ const adhesionSchema = z.object({
     .max(100, 'Le lieu de naissance ne peut dépasser 100 caractères'),
 
   adresse: z.string()
-    .min(10, 'L\'adresse doit contenir au moins 10 caractères')
+    .min(5, 'L\'adresse doit contenir au moins 5 caractères')
     .max(200, 'L\'adresse ne peut dépasser 200 caractères'),
 
   profession: z.string()
@@ -39,7 +39,7 @@ const adhesionSchema = z.object({
     .max(100, 'La ville de résidence ne peut dépasser 100 caractères'),
 
   date_entree_congo: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide (YYYY-MM-DD)')
+    .regex(/^\d{2}-\d{2}-\d{4}$/, 'Format de date invalide (DD-MM-YYYY)')
     .refine(dateStr => {
       const date = new Date(dateStr);
       const now = new Date();
@@ -54,7 +54,7 @@ const adhesionSchema = z.object({
     .transform(str => str.replace(/\s+/g, '')) // Enlever tous les espaces
     .refine(phone => {
       // Accepter les numéros du Congo (+242), Gabon (+241), et France (+33)
-      const congoBrazzaville = /^\+?242[0-9]{7,8}$/;
+      const congoBrazzaville = /^\+?242[0-9]{7,9}$/;
       const gabon = /^\+?241[0-9]{7,8}$/;
       const france = /^\+?33[0-9]{8,9}$/;
       return congoBrazzaville.test(phone) || gabon.test(phone) || france.test(phone);
@@ -68,7 +68,7 @@ const adhesionSchema = z.object({
   numero_piece_identite: z.string()
     .min(5, 'Le numéro de pièce d\'identité doit contenir au moins 5 caractères')
     .max(20, 'Le numéro de pièce d\'identité ne peut dépasser 20 caractères')
-    .regex(/^[A-Z0-9]+$/, 'Format invalide (lettres majuscules et chiffres uniquement)'),
+    .regex(/^[a-zA-Z0-9]+$/, 'Format invalide (lettres majuscules et chiffres uniquement)'),
 
   date_emission_piece: z.string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide (YYYY-MM-DD)')
@@ -93,10 +93,10 @@ const adhesionSchema = z.object({
     .optional()
     .or(z.literal('')),
 
-  nombre_enfants: z.number()
-    .int('Le nombre d\'enfants doit être un nombre entier')
-    .min(0, 'Le nombre d\'enfants ne peut être négatif')
-    .max(20, 'Le nombre d\'enfants semble trop élevé')
+  nombre_enfants: z.coerce.number()
+    .int("Le nombre d'enfants doit être un nombre entier")
+    .min(0, "Le nombre d'enfants ne peut être négatif")
+    .max(20, "Le nombre d'enfants semble trop élevé")
     .optional()
     .or(z.literal(0))
 });
@@ -130,18 +130,34 @@ const statusUpdateSchema = z.object({
 const validerFichiersAdhesion = (files) => {
   const errors = [];
   
-  if (!files.photo_piece || !files.photo_profil) {
-    errors.push('Tous les fichiers sont requis: photo de la pièce d\'identité et photo de profil');
+  // Seulement la photo de profil est requise maintenant
+  if (!files.photo_profil) {
+    errors.push('Photo de profil requise');
     return { valid: false, errors };
   }
 
-  const champsFile = ['photo_piece', 'photo_profil'];
+  const champsFile = ['photo_profil']; // Seulement photo de profil
+  
+  // Photo de pièce optionnelle pour l'instant (commentée)
+  // if (files.photo_piece) {
+  //   champsFile.push('photo_piece');
+  // }
   
   for (const champ of champsFile) {
-    const file = files[champ];
+    let file = files[champ];
+    
+    // Avec multer.fields(), les fichiers sont toujours dans des tableaux
     if (Array.isArray(file)) {
-      errors.push(`Un seul fichier autorisé pour ${champ}`);
-      continue;
+      if (file.length === 0) {
+        errors.push(`Fichier manquant pour ${champ}`);
+        continue;
+      }
+      if (file.length > 1) {
+        errors.push(`Un seul fichier autorisé pour ${champ}`);
+        continue;
+      }
+      // Prendre le premier (et seul) fichier du tableau
+      file = file[0];
     }
 
     try {

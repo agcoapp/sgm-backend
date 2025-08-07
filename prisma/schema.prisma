@@ -29,7 +29,7 @@ model Utilisateur {
   type_piece_identite    TypePiece? // Type de pièce d'identité
   numero_piece_identite  String?   @unique // Numéro de la pièce d'identité
   date_emission_piece    DateTime? // Date d'émission de la pièce d'identité
-  photo_piece_url        String?   // Photo du document d'identité
+  // photo_piece_url        String?   // Photo du document d'identité (temporairement désactivé)
   
   // Informations familiales
   prenom_conjoint        String?   // Prénom du conjoint

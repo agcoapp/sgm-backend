@@ -9,6 +9,7 @@ const { clerkMiddleware } = require('./config/clerk');
 const healthRoutes = require('./routes/health');
 const authRoutes = require('./routes/auth');
 const registrationRoutes = require('./routes/registration');
+const adhesionRoutes = require('./routes/adhesion');
 
 const app = express();
 
@@ -55,6 +56,7 @@ if (!fs.existsSync(logsDir)) {
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/register', registrationRoutes);
+app.use('/api/adhesion', adhesionRoutes);
 
 // Basic info route
 app.get('/api', (req, res) => {

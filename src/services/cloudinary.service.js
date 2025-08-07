@@ -69,7 +69,84 @@ class CloudinaryService {
   }
 
   /**
-   * Upload ID document photos
+   * Upload photos pour adhésion (pièce d'identité et profil)
+   */
+  async uploadPhotosAdhesion(bufferPiece, bufferProfil, utilisateurId) {
+    try {
+      const timestamp = Date.now();
+      const uploads = await Promise.all([
+        this.uploadPhoto(bufferPiece, 'pieces_identite', `utilisateur_${utilisateurId}_piece_${timestamp}`),
+        this.uploadPhoto(bufferProfil, 'photos_profil', `utilisateur_${utilisateurId}_profil_${timestamp}`)
+      ]);
+
+      return {
+        photo_piece_url: uploads[0],
+        photo_profil_url: uploads[1]
+      };
+    } catch (error) {
+      logger.error('Erreur upload photos adhésion:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload image de formulaire d'adhésion généré
+   */
+  async uploadFormulaireAdhesion(buffer, utilisateurId, numeroAdhesion) {
+    try {
+      const timestamp = Date.now();
+      const publicId = `adhesion_${utilisateurId}_${numeroAdhesion.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}`;
+      
+      const url = await this.uploadPhoto(
+        buffer, 
+        'formulaires_adhesion', 
+        publicId,
+        {
+          format: 'pdf', // Formulaires d'adhésion en PDF
+          transformation: [
+            { width: 2480, height: 3508, crop: 'fit' }, // Format A4 en pixels
+            { quality: 'auto:good' }
+          ]
+        }
+      );
+
+      return url;
+    } catch (error) {
+      logger.error('Erreur upload formulaire adhésion:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload carte de membre numérique
+   */
+  async uploadCarteMembre(buffer, utilisateurId, numeroAdhesion) {
+    try {
+      const timestamp = Date.now();
+      const publicId = `carte_${utilisateurId}_${numeroAdhesion.replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}`;
+      
+      const url = await this.uploadPhoto(
+        buffer, 
+        'cartes_membres', 
+        publicId,
+        {
+          format: 'png', // Cartes en PNG pour transparence
+          transformation: [
+            { width: 1024, height: 648, crop: 'fit' }, // Format carte standard
+            { quality: 'auto:good' }
+          ]
+        }
+      );
+
+      return url;
+    } catch (error) {
+      logger.error('Erreur upload carte membre:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload ID document photos (méthode legacy)
    */
   async uploadIdPhotos(frontBuffer, backBuffer, selfieBuffer, userId) {
     try {
