@@ -22,12 +22,14 @@ class ControleurSecretaire {
         ]
       } : {};
 
-      // Lister les membres qui ont payé mais n'ont pas soumis le formulaire
+      // Lister les membres qui ont des identifiants mais n'ont pas soumis le formulaire
+      // (Ces membres ont déjà payé en cash et reçu leurs identifiants)
       const membres = await prisma.utilisateur.findMany({
         where: {
           AND: [
-            { a_paye: true },
-            { a_soumis_formulaire: false },
+            { NOT: { nom_utilisateur: null } }, // Ont des identifiants
+            { a_soumis_formulaire: false }, // N'ont pas soumis le formulaire
+            { role: 'MEMBRE' }, // Exclure les admins
             conditionsRecherche
           ]
         },
@@ -52,8 +54,9 @@ class ControleurSecretaire {
       const totalMembres = await prisma.utilisateur.count({
         where: {
           AND: [
-            { a_paye: true },
-            { a_soumis_formulaire: false },
+            { NOT: { nom_utilisateur: null } }, // Ont des identifiants
+            { a_soumis_formulaire: false }, // N'ont pas soumis le formulaire
+            { role: 'MEMBRE' }, // Exclure les admins
             conditionsRecherche
           ]
         }
@@ -94,42 +97,94 @@ class ControleurSecretaire {
    * Obtenir les statistiques pour le tableau de bord
    */
   async obtenirStatistiques() {
-    const [
-      totalMembres,
-      membresAyantPaye,
-      membresFormulaireSoumis,
-      membresApprouves,
-      membresEnAttente,
-      membresAvecIdentifiants,
-      membresConnectesRecemment
-    ] = await Promise.all([
-      prisma.utilisateur.count(),
-      prisma.utilisateur.count({ where: { a_paye: true } }),
-      prisma.utilisateur.count({ where: { a_soumis_formulaire: true } }),
-      prisma.utilisateur.count({ where: { statut: 'APPROUVE' } }),
-      prisma.utilisateur.count({ where: { statut: 'EN_ATTENTE' } }),
-      prisma.utilisateur.count({ where: { NOT: { nom_utilisateur: null } } }),
-      prisma.utilisateur.count({
-        where: {
-          derniere_connexion: {
-            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // 7 derniers jours
-          }
-        }
-      })
-    ]);
+    try {
+      // Exclure les rôles administratifs des statistiques
+      const filtreNonAdmin = {
+        role: { notIn: ['PRESIDENT', 'SECRETAIRE_GENERALE'] }
+      };
 
-    return {
-      total_membres: totalMembres,
-      membres_ayant_paye: membresAyantPaye,
-      membres_formulaire_soumis: membresFormulaireSoumis,
-      membres_approuves: membresApprouves,
-      membres_en_attente: membresEnAttente,
-      membres_avec_identifiants: membresAvecIdentifiants,
-      membres_connectes_recemment: membresConnectesRecemment,
-      // Calculs dérivés
-      membres_paye_sans_formulaire: membresAyantPaye - membresFormulaireSoumis,
-      taux_soumission_formulaire: membresAyantPaye > 0 ? Math.round((membresFormulaireSoumis / membresAyantPaye) * 100) : 0
-    };
+      const [
+        totalMembres,
+        membresAvecIdentifiants,
+        membresFormulaireSoumis,
+        membresApprouves,
+        membresEnAttente,
+        membresConnectesRecemment
+      ] = await Promise.all([
+        prisma.utilisateur.count({ where: filtreNonAdmin }),
+        prisma.utilisateur.count({ 
+          where: { 
+            ...filtreNonAdmin,
+            NOT: { nom_utilisateur: null } 
+          } 
+        }),
+        prisma.utilisateur.count({ 
+          where: { 
+            ...filtreNonAdmin,
+            a_soumis_formulaire: true 
+          } 
+        }),
+        prisma.utilisateur.count({ 
+          where: { 
+            ...filtreNonAdmin,
+            statut: 'APPROUVE' 
+          } 
+        }),
+        prisma.utilisateur.count({ 
+          where: { 
+            ...filtreNonAdmin,
+            statut: 'EN_ATTENTE' 
+          } 
+        }),
+        prisma.utilisateur.count({
+          where: {
+            ...filtreNonAdmin,
+            derniere_connexion: {
+              gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // 7 derniers jours
+            }
+          }
+        })
+      ]);
+
+      // Membres qui ont des identifiants mais n'ont pas soumis le formulaire
+      const membresAvecIdentifiantsSansFormulaire = Math.max(0, membresAvecIdentifiants - membresFormulaireSoumis);
+
+      return {
+        total_membres: totalMembres || 0,
+        membres_avec_identifiants: membresAvecIdentifiants || 0,
+        membres_formulaire_soumis: membresFormulaireSoumis || 0,
+        membres_approuves: membresApprouves || 0,
+        membres_en_attente: membresEnAttente || 0,
+        membres_connectes_recemment: membresConnectesRecemment || 0,
+        // Calculs dérivés
+        membres_avec_identifiants_sans_formulaire: membresAvecIdentifiantsSansFormulaire,
+        taux_soumission_formulaire: membresAvecIdentifiants > 0 ? 
+          Math.round((membresFormulaireSoumis / membresAvecIdentifiants) * 100) : 0,
+        workflow_status: {
+          etape_1_creation_identifiants: membresAvecIdentifiants,
+          etape_2_soumission_formulaire: membresFormulaireSoumis,
+          etape_3_approbation: membresApprouves
+        }
+      };
+    } catch (error) {
+      logger.error('Erreur calcul statistiques:', error);
+      // Retourner des statistiques par défaut en cas d'erreur
+      return {
+        total_membres: 0,
+        membres_avec_identifiants: 0,
+        membres_formulaire_soumis: 0,
+        membres_approuves: 0,
+        membres_en_attente: 0,
+        membres_connectes_recemment: 0,
+        membres_avec_identifiants_sans_formulaire: 0,
+        taux_soumission_formulaire: 0,
+        workflow_status: {
+          etape_1_creation_identifiants: 0,
+          etape_2_soumission_formulaire: 0,
+          etape_3_approbation: 0
+        }
+      };
+    }
   }
 
   /**
