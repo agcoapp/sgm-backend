@@ -9,7 +9,7 @@ datasource db {
 
 model Utilisateur {
   id                     Int       @id @default(autoincrement())
-  clerkId                String?   @unique // ID Clerk pour sync
+  // clerkId                String?   @unique // ID Clerk pour sync - COMMENTÉ
   numero_adhesion        String?   @unique // Numéro d'adhésion autogénéré
   
   // Informations personnelles
@@ -37,12 +37,21 @@ model Utilisateur {
   nombre_enfants         Int?      // Nombre d'enfants
   
   // Champs système
-  email                  String?   @unique // Email optionnel (pour compte)
+  email                  String?   @unique // Email optionnel (pour récupération mot de passe)
   statut                 Statut    @default(EN_ATTENTE)
   role                   Role      @default(MEMBRE)
   code_formulaire        String?   @unique
   url_qr_code            String?
   carte_emise_le         DateTime?
+  
+  // Authentification locale
+  nom_utilisateur        String?   @unique // Nom d'utilisateur généré par secrétaire
+  mot_passe_hash         String?   // Hash du mot de passe
+  doit_changer_mot_passe Boolean   @default(false) // True si première connexion
+  a_paye                 Boolean   @default(false) // True si a payé physiquement
+  a_soumis_formulaire    Boolean   @default(false) // True si a soumis le formulaire
+  derniere_connexion     DateTime? // Dernière connexion
+  
   cree_le                DateTime  @default(now())
   modifie_le             DateTime  @updatedAt
 
@@ -50,6 +59,7 @@ model Utilisateur {
   signatures             Signature[]
   journaux_audit         JournalAudit[]
   formulaires_adhesion   FormulaireAdhesion[]
+  tokens_recuperation    TokenRecuperation[]
 }
 
 model Signature {
@@ -87,6 +97,17 @@ model FormulaireAdhesion {
   utilisateur         Utilisateur @relation(fields: [id_utilisateur], references: [id])
   
   @@unique([id_utilisateur, numero_version])
+}
+
+model TokenRecuperation {
+  id             Int       @id @default(autoincrement())
+  id_utilisateur Int
+  token          String    @unique
+  expire_le      DateTime
+  utilise        Boolean   @default(false)
+  cree_le        DateTime  @default(now())
+  
+  utilisateur    Utilisateur @relation(fields: [id_utilisateur], references: [id])
 }
 
 enum Statut {

@@ -2,6 +2,7 @@ const { getAuth, getUser } = require('../config/clerk');
 const prisma = require('../config/database');
 const logger = require('../config/logger');
 const cloudinaryService = require('../services/cloudinary.service');
+const pdfGeneratorService = require('../services/pdf-generator.service');
 const { registerSchema, validateFiles } = require('../schemas/user.schema');
 
 class RegistrationController {
@@ -129,25 +130,20 @@ class RegistrationController {
 
       logger.info(`Registration completed for user ${updatedUser.id} (${validatedData.email})`);
 
-      // TODO: Send notification to admins about new registration
-      // TODO: Send confirmation email to user
+      // Generate PDF
+      logger.info(`Generating adhesion PDF for user ${updatedUser.id}`);
+      const pdfBuffer = await pdfGeneratorService.genererFicheAdhesion(
+        updatedUser,
+        photoUrls.selfie_photo_url
+      );
 
-      res.status(200).json({
-        message: 'Inscription complétée avec succès',
-        user: {
-          id: updatedUser.id,
-          name: updatedUser.name,
-          email: updatedUser.email,
-          id_number: updatedUser.id_number,
-          status: updatedUser.status,
-          registration_date: updatedUser.updated_at
-        },
-        next_steps: [
-          'Votre dossier est en cours d\'examen par nos administrateurs',
-          'Vous recevrez une notification par email une fois votre dossier traité',
-          'En cas d\'approbation, vous pourrez télécharger votre carte de membre'
-        ]
-      });
+      // Send PDF as response
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="fiche-adhesion-${updatedUser.name.replace(/\s/g, '_')}.pdf"`
+      );
+      res.send(pdfBuffer);
 
     } catch (error) {
       if (error.name === 'ZodError') {
@@ -170,6 +166,7 @@ class RegistrationController {
       });
     }
   }
+
 
   /**
    * Get current user registration status

@@ -38,11 +38,12 @@ router.post(
 );
 
 /**
+ * COMMENTÉ - Route obsolète avec Clerk
  * @route POST /api/adhesion/lier-compte
  * @desc Lier un compte Clerk existant à une demande d'adhésion
  * @access Private (authentification Clerk requise)
  */
-router.post('/lier-compte', adhesionController.lierCompte);
+// router.post('/lier-compte', adhesionController.lierCompte);
 
 /**
  * @route GET /api/adhesion/statut
@@ -59,6 +60,13 @@ router.get('/statut', adhesionController.obtenirStatutAdhesion);
  * @access Public (pour développement)
  */
 router.get('/preview-template', adhesionController.previewTemplate);
+
+/**
+ * @route GET /api/adhesion/test-pdf
+ * @desc Générer et télécharger un PDF de test
+ * @access Public (pour développement)
+ */
+router.get('/test-pdf', adhesionController.testPdfGeneration);
 
 // Gestion d'erreur multer
 router.use((error, req, res, next) => {

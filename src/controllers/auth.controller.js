@@ -1,350 +1,278 @@
-const { getAuth, getUser } = require('../config/clerk');
+const serviceAuth = require('../services/auth.service');
 const prisma = require('../config/database');
 const logger = require('../config/logger');
+const { changerMotPasseSchema, connexionSchema, recuperationMotPasseSchema, reinitialiserMotPasseSchema } = require('../schemas/auth.schema');
 
 class AuthController {
   /**
-   * Handle user sign-up from Clerk
-   * This endpoint is called after user completes Clerk signup
+   * Connexion utilisateur
    */
-  async signUp(req, res) {
+  async seConnecter(req, res) {
     try {
-      const auth = getAuth(req);
+      const donneesValidees = connexionSchema.parse(req.body);
       
-      if (!auth?.userId) {
+      const resultat = await serviceAuth.authentifier(
+        donneesValidees.nom_utilisateur,
+        donneesValidees.mot_passe,
+        req.ip,
+        req.get('User-Agent')
+      );
+
+      if (!resultat.succes) {
         return res.status(401).json({
-          error: 'Non authentifié',
-          code: 'UNAUTHORIZED'
+          erreur: resultat.message,
+          code: 'AUTHENTIFICATION_ECHOUEE'
         });
       }
-
-      // Get user data from Clerk
-      const clerkUser = await getUser(auth.userId);
-      
-      if (!clerkUser) {
-        return res.status(404).json({
-          error: 'Utilisateur non trouvé dans Clerk',
-          code: 'CLERK_USER_NOT_FOUND'
-        });
-      }
-
-      // Check if user already exists in our database
-      const existingUser = await prisma.user.findUnique({
-        where: { clerkId: auth.userId }
-      });
-
-      if (existingUser) {
-        return res.status(409).json({
-          error: 'Utilisateur déjà enregistré',
-          code: 'USER_ALREADY_EXISTS',
-          user: {
-            id: existingUser.id,
-            status: existingUser.status,
-            role: existingUser.role
-          }
-        });
-      }
-
-      // Create basic user record (without full registration data)
-      const email = clerkUser.emailAddresses?.[0]?.emailAddress;
-      const firstName = clerkUser.firstName || '';
-      const lastName = clerkUser.lastName || '';
-      const fullName = `${firstName} ${lastName}`.trim() || email;
-
-      const newUser = await prisma.user.create({
-        data: {
-          clerkId: auth.userId,
-          name: fullName,
-          email: email,
-          status: 'PENDING',
-          role: 'MEMBER'
-          // All other fields are nullable and will be filled during registration
-        }
-      });
-
-      // Log the signup
-      await prisma.auditLog.create({
-        data: {
-          user_id: newUser.id,
-          action: 'SIGNUP',
-          details: {
-            clerkId: auth.userId,
-            email: email,
-            name: fullName
-          },
-          ip_address: req.ip,
-          user_agent: req.get('User-Agent')
-        }
-      });
-
-      logger.info(`New user signed up: ${email} (ID: ${newUser.id})`);
-
-      res.status(201).json({
-        message: 'Compte créé avec succès',
-        user: {
-          id: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
-          status: newUser.status,
-          role: newUser.role,
-          needs_registration: true
-        }
-      });
-
-    } catch (error) {
-      logger.error('Sign up error:', error);
-      res.status(500).json({
-        error: 'Erreur lors de la création du compte',
-        code: 'SIGNUP_ERROR'
-      });
-    }
-  }
-
-  /**
-   * Handle user sign-in from Clerk
-   * This endpoint is called after user completes Clerk signin
-   */
-  async signIn(req, res) {
-    try {
-      const auth = getAuth(req);
-      
-      if (!auth?.userId) {
-        return res.status(401).json({
-          error: 'Non authentifié',
-          code: 'UNAUTHORIZED'
-        });
-      }
-
-      // Find user in our database
-      const user = await prisma.user.findUnique({
-        where: { clerkId: auth.userId },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          status: true,
-          role: true,
-          form_code: true,
-          qr_code_url: true,
-          card_issued_at: true,
-          created_at: true,
-          id_number: true,
-          phone: true,
-          address: true
-        }
-      });
-
-      if (!user) {
-        // User exists in Clerk but not in our database
-        // They need to complete signup first
-        return res.status(404).json({
-          error: 'Compte non trouvé',
-          code: 'USER_NOT_FOUND',
-          needs_signup: true,
-          clerk_user_id: auth.userId
-        });
-      }
-
-      // Update last login
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { updated_at: new Date() }
-      });
-
-      // Log the signin
-      await prisma.auditLog.create({
-        data: {
-          user_id: user.id,
-          action: 'SIGNIN',
-          details: {
-            clerkId: auth.userId,
-            email: user.email
-          },
-          ip_address: req.ip,
-          user_agent: req.get('User-Agent')
-        }
-      });
-
-      logger.info(`User signed in: ${user.email} (ID: ${user.id})`);
-
-      // Determine if user needs to complete registration
-      const needsRegistration = !user.id_number || !user.id_front_photo_url;
 
       res.json({
         message: 'Connexion réussie',
-        user: {
-          ...user,
-          needs_registration: needsRegistration
-        }
+        token: resultat.token,
+        utilisateur: resultat.utilisateur
       });
 
     } catch (error) {
-      logger.error('Sign in error:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({
+          erreur: 'Données invalides',
+          code: 'ERREUR_VALIDATION',
+          details: error.errors
+        });
+      }
+
+      logger.error('Erreur connexion:', error);
       res.status(500).json({
-        error: 'Erreur lors de la connexion',
-        code: 'SIGNIN_ERROR'
+        erreur: 'Erreur lors de la connexion',
+        code: 'ERREUR_CONNEXION'
       });
     }
   }
 
   /**
-   * Get current authenticated user status
+   * Changer le mot de passe (pour utilisateurs connectés)
    */
-  async getStatus(req, res) {
+  async changerMotPasse(req, res) {
     try {
-      const auth = getAuth(req);
-      
-      if (!auth?.userId) {
-        return res.json({
-          authenticated: false,
-          user_in_database: false,
-          needs_signup: true,
-          needs_registration: false,
-          user: null
+      const donneesValidees = changerMotPasseSchema.parse(req.body);
+      const idUtilisateur = req.user.id; // Provient du middleware d'authentification
+
+      const resultat = await serviceAuth.changerMotPasse(
+        idUtilisateur,
+        donneesValidees.ancien_mot_passe,
+        donneesValidees.nouveau_mot_passe
+      );
+
+      res.json({
+        message: resultat.message
+      });
+
+    } catch (error) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({
+          erreur: 'Données invalides',
+          code: 'ERREUR_VALIDATION',
+          details: error.errors
         });
       }
 
-      // Find user in our database
-      const user = await prisma.user.findUnique({
-        where: { clerkId: auth.userId },
+      if (error.message === 'Ancien mot de passe incorrect') {
+        return res.status(400).json({
+          erreur: error.message,
+          code: 'ANCIEN_MOT_PASSE_INCORRECT'
+        });
+      }
+
+      logger.error('Erreur changement mot de passe:', error);
+      res.status(500).json({
+        erreur: 'Erreur lors du changement de mot de passe',
+        code: 'ERREUR_CHANGEMENT_MOT_PASSE'
+      });
+    }
+  }
+
+  /**
+   * Demander une récupération de mot de passe
+   */
+  async demanderRecuperationMotPasse(req, res) {
+    try {
+      const donneesValidees = recuperationMotPasseSchema.parse(req.body);
+
+      const resultat = await serviceAuth.genererTokenRecuperation(donneesValidees.email);
+
+      // TODO: Envoyer email avec le token
+      // Pour le développement, on retourne le token
+      res.json({
+        message: resultat.message,
+        // ATTENTION: En production, ne jamais retourner le token
+        token_dev: resultat.token
+      });
+
+    } catch (error) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({
+          erreur: 'Données invalides',
+          code: 'ERREUR_VALIDATION',
+          details: error.errors
+        });
+      }
+
+      logger.error('Erreur récupération mot de passe:', error);
+      res.status(500).json({
+        erreur: 'Erreur lors de la demande de récupération',
+        code: 'ERREUR_RECUPERATION'
+      });
+    }
+  }
+
+  /**
+   * Réinitialiser le mot de passe avec token
+   */
+  async reinitialiserMotPasse(req, res) {
+    try {
+      const donneesValidees = reinitialiserMotPasseSchema.parse(req.body);
+
+      const resultat = await serviceAuth.reinitialiserMotPasse(
+        donneesValidees.token,
+        donneesValidees.nouveau_mot_passe
+      );
+
+      res.json({
+        message: resultat.message
+      });
+
+    } catch (error) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({
+          erreur: 'Données invalides',
+          code: 'ERREUR_VALIDATION',
+          details: error.errors
+        });
+      }
+
+      if (error.message === 'Token invalide ou expiré') {
+        return res.status(400).json({
+          erreur: error.message,
+          code: 'TOKEN_INVALIDE'
+        });
+      }
+
+      logger.error('Erreur réinitialisation mot de passe:', error);
+      res.status(500).json({
+        erreur: 'Erreur lors de la réinitialisation',
+        code: 'ERREUR_REINITIALISATION'
+      });
+    }
+  }
+
+  /**
+   * Obtenir le profil de l'utilisateur connecté
+   */
+  async obtenirProfil(req, res) {
+    try {
+      const utilisateur = await prisma.utilisateur.findUnique({
+        where: { id: req.user.id },
         select: {
           id: true,
-          name: true,
+          nom_utilisateur: true,
+          prenoms: true,
+          nom: true,
           email: true,
-          status: true,
+          telephone: true,
           role: true,
-          form_code: true,
-          id_number: true,
-          id_front_photo_url: true,
-          selfie_photo_url: true
+          statut: true,
+          doit_changer_mot_passe: true,
+          a_paye: true,
+          a_soumis_formulaire: true,
+          numero_adhesion: true,
+          code_formulaire: true,
+          derniere_connexion: true
         }
       });
 
-      if (!user) {
-        return res.json({
-          authenticated: true,
-          user_in_database: false,
-          needs_signup: true,
-          needs_registration: false,
-          clerk_user_id: auth.userId
+      if (!utilisateur) {
+        return res.status(404).json({
+          erreur: 'Utilisateur non trouvé',
+          code: 'UTILISATEUR_NON_TROUVE'
         });
       }
 
-      // Check if registration is complete
-      const needsRegistration = !user.id_number || !user.id_front_photo_url;
-
       res.json({
-        authenticated: true,
-        user_in_database: true,
-        needs_signup: false,
-        needs_registration: needsRegistration,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          status: user.status,
-          role: user.role,
-          form_code: user.form_code,
-          has_complete_profile: !needsRegistration
+        utilisateur: {
+          ...utilisateur,
+          nom_complet: `${utilisateur.prenoms} ${utilisateur.nom}`
         }
       });
 
     } catch (error) {
-      logger.error('Get status error:', error);
+      logger.error('Erreur obtention profil:', error);
       res.status(500).json({
-        error: 'Erreur lors de la récupération du statut',
-        code: 'STATUS_ERROR'
+        erreur: 'Erreur lors de l\'obtention du profil',
+        code: 'ERREUR_PROFIL'
       });
     }
   }
 
   /**
-   * Get current user profile
+   * Déconnexion (côté client seulement pour JWT)
    */
-  async getMe(req, res) {
+  async seDeconnecter(req, res) {
     try {
-      const auth = getAuth(req);
-      
-      if (!auth?.userId) {
-        return res.status(401).json({
-          error: 'Non authentifié',
-          code: 'UNAUTHORIZED'
-        });
-      }
-
-      // Get user from Clerk
-      const clerkUser = await getUser(auth.userId);
-      
-      // Get user from our database
-      const dbUser = await prisma.user.findUnique({
-        where: { clerkId: auth.userId }
-      });
-
-      res.json({
-        message: 'Informations utilisateur récupérées',
-        clerk_user: {
-          id: clerkUser?.id,
-          email: clerkUser?.emailAddresses?.[0]?.emailAddress,
-          first_name: clerkUser?.firstName,
-          last_name: clerkUser?.lastName,
-          created_at: clerkUser?.createdAt,
-          last_sign_in_at: clerkUser?.lastSignInAt
-        },
-        db_user: dbUser || null,
-        needs_signup: !dbUser,
-        needs_registration: dbUser ? (!dbUser.id_number || !dbUser.id_front_photo_url) : false
-      });
-
-    } catch (error) {
-      logger.error('Get me error:', error);
-      res.status(500).json({
-        error: 'Erreur lors de la récupération des informations',
-        code: 'USER_FETCH_ERROR'
-      });
-    }
-  }
-
-  /**
-   * Handle user logout (cleanup)
-   */
-  async signOut(req, res) {
-    try {
-      const auth = getAuth(req);
-      
-      if (auth?.userId) {
-        const user = await prisma.user.findUnique({
-          where: { clerkId: auth.userId },
-          select: { id: true, email: true }
-        });
-
-        if (user) {
-          // Log the signout
-          await prisma.auditLog.create({
-            data: {
-              user_id: user.id,
-              action: 'SIGNOUT',
-              details: {
-                clerkId: auth.userId,
-                email: user.email
-              },
-              ip_address: req.ip,
-              user_agent: req.get('User-Agent')
-            }
-          });
-
-          logger.info(`User signed out: ${user.email} (ID: ${user.id})`);
+      // Pour JWT, la déconnexion est côté client
+      // On peut logger l'action
+      await prisma.journalAudit.create({
+        data: {
+          id_utilisateur: req.user.id,
+          action: 'DECONNEXION',
+          details: {},
+          adresse_ip: req.ip,
+          agent_utilisateur: req.get('User-Agent')
         }
-      }
+      });
 
       res.json({
         message: 'Déconnexion réussie'
       });
 
     } catch (error) {
-      logger.error('Sign out error:', error);
+      logger.error('Erreur déconnexion:', error);
       res.status(500).json({
-        error: 'Erreur lors de la déconnexion',
-        code: 'SIGNOUT_ERROR'
+        erreur: 'Erreur lors de la déconnexion',
+        code: 'ERREUR_DECONNEXION'
+      });
+    }
+  }
+
+  /**
+   * Obtenir le statut de l'utilisateur authentifié (remplace l'ancien getStatus)
+   */
+  async obtenirStatut(req, res) {
+    try {
+      if (!req.user) {
+        return res.json({
+          authentifie: false,
+          utilisateur: null,
+          doit_changer_mot_passe: false,
+          doit_soumettre_formulaire: false
+        });
+      }
+
+      res.json({
+        authentifie: true,
+        utilisateur: {
+          id: req.user.id,
+          nom_utilisateur: req.user.nom_utilisateur,
+          role: req.user.role,
+          statut: req.user.statut
+        },
+        doit_changer_mot_passe: req.user.doit_changer_mot_passe,
+        doit_soumettre_formulaire: !req.user.a_soumis_formulaire
+      });
+
+    } catch (error) {
+      logger.error('Erreur statut utilisateur:', error);
+      res.status(500).json({
+        erreur: 'Erreur lors de la récupération du statut',
+        code: 'ERREUR_STATUT'
       });
     }
   }

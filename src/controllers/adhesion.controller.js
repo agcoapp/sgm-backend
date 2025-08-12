@@ -1,10 +1,17 @@
-const { getAuth } = require('../config/clerk');
+// const { getAuth } = require('../config/clerk'); // COMMENTÉ - Clerk remplacé par auth locale
 const prisma = require('../config/database');
 const logger = require('../config/logger');
 const cloudinaryService = require('../services/cloudinary.service');
 const pdfGeneratorService = require('../services/pdf-generator.service');
 const templateService = require('../services/template.service');
 const { adhesionSchema, validerFichiersAdhesion } = require('../schemas/user.schema');
+
+// Fonction utilitaire pour convertir DD-MM-YYYY en Date
+function convertirDateFrancaise(dateStr) {
+  if (!dateStr) return null;
+  const [jour, mois, annee] = dateStr.split('-');
+  return new Date(annee, mois - 1, jour); // mois - 1 car Date() utilise 0-11
+}
 
 class AdhesionController {
   /**
@@ -48,30 +55,31 @@ class AdhesionController {
       const compteurAdhesions = await prisma.utilisateur.count();
       const numeroAdhesion = `N°${String(compteurAdhesions + 1).padStart(3, '0')}/AGCO/P/${new Date().getMonth() + 1}-${new Date().getFullYear()}`;
 
-      // Créer l'enregistrement utilisateur (sans clerkId - pas encore de compte)
+      // Créer l'enregistrement utilisateur
       const nouvelUtilisateur = await prisma.utilisateur.create({
         data: {
-          clerkId: null, // Pas de compte créé encore
+          // clerkId: null, // COMMENTÉ - plus de Clerk
           numero_adhesion: numeroAdhesion,
           prenoms: donneesValidees.prenoms,
           nom: donneesValidees.nom,
-          date_naissance: new Date(donneesValidees.date_naissance),
+          date_naissance: convertirDateFrancaise(donneesValidees.date_naissance),
           lieu_naissance: donneesValidees.lieu_naissance,
           adresse: donneesValidees.adresse,
           profession: donneesValidees.profession,
           ville_residence: donneesValidees.ville_residence,
-          date_entree_congo: new Date(donneesValidees.date_entree_congo),
+          date_entree_congo: convertirDateFrancaise(donneesValidees.date_entree_congo),
           employeur_ecole: donneesValidees.employeur_ecole,
           telephone: donneesValidees.telephone,
           type_piece_identite: donneesValidees.type_piece_identite,
           numero_piece_identite: donneesValidees.numero_piece_identite,
-          date_emission_piece: new Date(donneesValidees.date_emission_piece),
+          date_emission_piece: convertirDateFrancaise(donneesValidees.date_emission_piece),
           prenom_conjoint: donneesValidees.prenom_conjoint || null,
           nom_conjoint: donneesValidees.nom_conjoint || null,
           nombre_enfants: donneesValidees.nombre_enfants || 0,
-          email: null, // Email optionnel pour adhésion
+          email: donneesValidees.email || null, // Email optionnel pour adhésion et récupération mot de passe
           statut: 'EN_ATTENTE',
-          role: 'MEMBRE'
+          role: 'MEMBRE',
+          a_soumis_formulaire: true // Marquer comme formulaire soumis
         }
       });
 
@@ -150,7 +158,7 @@ class AdhesionController {
             telephone: donneesValidees.telephone,
             numero_piece_identite: donneesValidees.numero_piece_identite,
             type_piece_identite: donneesValidees.type_piece_identite,
-            a_compte: false
+            formulaire_soumis: true
           },
           adresse_ip: req.ip,
           agent_utilisateur: req.get('User-Agent')
@@ -179,7 +187,7 @@ class AdhesionController {
           'Vous recevrez des notifications par SMS sur l\'avancement de votre dossier',
           'Pour suivre votre demande en ligne, vous pouvez créer un compte sur notre application'
         ],
-        peut_creer_compte: true,
+        // peut_creer_compte: true, // COMMENTÉ - Plus nécessaire sans Clerk
         reference_adhesion: numeroAdhesion
       });
 
@@ -206,92 +214,13 @@ class AdhesionController {
   }
 
   /**
-   * Lier un compte existant à une demande d'adhésion
+   * COMMENTÉ - Méthode lierCompte obsolète avec Clerk
+   * Remplacée par le système d'identifiants locaux du secrétaire
    */
-  async lierCompte(req, res) {
-    try {
-      const { id_adhesion, telephone } = req.body;
-      const auth = getAuth(req);
-      
-      if (!auth?.userId) {
-        return res.status(401).json({
-          error: 'Non authentifié',
-          code: 'NON_AUTHENTIFIE'
-        });
-      }
-
-      // Trouver la demande d'adhésion
-      const adhesion = await prisma.utilisateur.findFirst({
-        where: {
-          AND: [
-            { id: parseInt(id_adhesion) },
-            { telephone: telephone },
-            { clerkId: null } // Pas encore liée à un compte
-          ]
-        }
-      });
-
-      if (!adhesion) {
-        return res.status(404).json({
-          error: 'Demande d\'adhésion non trouvée ou déjà liée à un compte',
-          code: 'ADHESION_NON_TROUVEE'
-        });
-      }
-
-      // Vérifier si ce compte Clerk est déjà lié à une autre adhésion
-      const liaisonExistante = await prisma.utilisateur.findUnique({
-        where: { clerkId: auth.userId }
-      });
-
-      if (liaisonExistante) {
-        return res.status(409).json({
-          error: 'Ce compte est déjà lié à une autre demande d\'adhésion',
-          code: 'COMPTE_DEJA_LIE'
-        });
-      }
-
-      // Lier le compte
-      const utilisateurLie = await prisma.utilisateur.update({
-        where: { id: adhesion.id },
-        data: { clerkId: auth.userId }
-      });
-
-      // Journal d'audit
-      await prisma.journalAudit.create({
-        data: {
-          id_utilisateur: utilisateurLie.id,
-          action: 'COMPTE_LIE',
-          details: {
-            clerkId: auth.userId,
-            numero_adhesion: utilisateurLie.numero_adhesion
-          },
-          adresse_ip: req.ip,
-          agent_utilisateur: req.get('User-Agent')
-        }
-      });
-
-      logger.info(`Compte lié pour adhésion ${utilisateurLie.id} (${utilisateurLie.numero_adhesion})`);
-
-      res.json({
-        message: 'Compte lié avec succès à votre demande d\'adhésion',
-        utilisateur: {
-          id: utilisateurLie.id,
-          nom_complet: `${utilisateurLie.prenoms} ${utilisateurLie.nom}`,
-          numero_adhesion: utilisateurLie.numero_adhesion,
-          statut: utilisateurLie.statut,
-          code_formulaire: utilisateurLie.code_formulaire,
-          peut_suivre_en_ligne: true
-        }
-      });
-
-    } catch (error) {
-      logger.error('Erreur liaison compte:', error);
-      res.status(500).json({
-        error: 'Erreur lors de la liaison du compte',
-        code: 'ERREUR_LIAISON'
-      });
-    }
-  }
+  // async lierCompte(req, res) {
+  //   // Cette méthode était utilisée avec Clerk pour lier un compte existant
+  //   // Elle n'est plus nécessaire avec le système d'authentification locale
+  // }
 
   /**
    * Obtenir le statut d'une demande par téléphone et référence (endpoint public)
@@ -324,7 +253,7 @@ class AdhesionController {
           code_formulaire: true,
           cree_le: true,
           modifie_le: true,
-          clerkId: true
+          nom_utilisateur: true
         }
       });
 
@@ -345,7 +274,7 @@ class AdhesionController {
           code_formulaire: adhesion.code_formulaire,
           date_soumission: adhesion.cree_le,
           derniere_mise_a_jour: adhesion.modifie_le,
-          a_compte: !!adhesion.clerkId
+          a_identifiants: !!adhesion.nom_utilisateur
         },
         info_statut: this.obtenirInfoStatut(adhesion.statut),
         actions_suivantes: this.obtenirActionsSuivantes(adhesion)
@@ -399,8 +328,8 @@ class AdhesionController {
     switch (adhesion.statut) {
       case 'EN_ATTENTE':
         const actions = ['Attendre l\'examen de votre demande par les administrateurs'];
-        if (!adhesion.clerkId) {
-          actions.push('Créer un compte pour suivre votre demande en ligne');
+        if (!adhesion.nom_utilisateur) {
+          actions.push('Des identifiants de connexion seront fournis après paiement');
         }
         return actions;
       case 'APPROUVE':
@@ -408,10 +337,10 @@ class AdhesionController {
         if (adhesion.code_formulaire) {
           actionsApprouvees.push('Votre code de membre a été attribué');
         }
-        if (!adhesion.clerkId) {
-          actionsApprouvees.push('Créer un compte pour accéder à votre carte de membre numérique');
+        if (!adhesion.nom_utilisateur) {
+          actionsApprouvees.push('Contactez le secrétaire pour obtenir vos identifiants de connexion');
         } else {
-          actionsApprouvees.push('Connectez-vous pour accéder à votre carte de membre');
+          actionsApprouvees.push('Connectez-vous pour accéder à votre carte de membre numérique');
         }
         return actionsApprouvees;
       case 'REJETE':
@@ -449,7 +378,7 @@ class AdhesionController {
       };
 
       // URL de photo de test (ou placeholder)
-      const photoTestUrl = 'https://via.placeholder.com/200x250/cccccc/000000?text=PHOTO';
+      const photoTestUrl = '../../../../../../../Pictures/passport_size_pic.jpg';
 
       // Générer le HTML
       const html = await templateService.genererHtmlFicheAdhesion(donneesTest, photoTestUrl);
@@ -463,6 +392,59 @@ class AdhesionController {
       res.status(500).json({
         error: 'Erreur lors de la prévisualisation du template',
         code: 'ERREUR_PREVIEW',
+        details: error.message
+      });
+    }
+  }
+
+  /**
+   * Générer et télécharger un PDF de test
+   */
+  async testPdfGeneration(req, res) {
+    try {
+      // Données de test identiques à la prévisualisation
+      const donneesTest = {
+        id: 999,
+        nom: 'Doe',
+        prenoms: 'John',
+        numero_adhesion: 'N°001/AGCO/P/8-2025',
+        date_naissance: new Date('1990-05-15'),
+        lieu_naissance: 'Libreville',
+        adresse: '123 Avenue de la Paix, Brazzaville',
+        profession: 'Ingénieur Informatique',
+        type_piece_identite: 'PASSEPORT',
+        numero_piece_identite: 'GA1234567',
+        date_emission_piece: new Date('2020-01-10'),
+        ville_residence: 'Brazzaville',
+        date_entree_congo: new Date('2023-03-20'),
+        employeur_ecole: 'OPEN-TECH Solutions',
+        telephone: '+242069012345',
+        prenom_conjoint: 'Jane',
+        nom_conjoint: 'Doe',
+        nombre_enfants: 2
+      };
+
+      // URL de photo de test
+      const photoTestUrl = '../../../../../../../Pictures/passport_size_pic.jpg';
+
+      // Générer le PDF
+      logger.info('Génération PDF de test démarrée');
+      const pdfBuffer = await pdfGeneratorService.genererFicheAdhesion(donneesTest, photoTestUrl);
+      
+      // Définir les headers pour le téléchargement
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="fiche-adhesion-test.pdf"');
+      res.setHeader('Content-Length', pdfBuffer.length);
+
+      // Envoyer le PDF
+      res.send(pdfBuffer);
+      logger.info(`PDF de test généré avec succès (${pdfBuffer.length} bytes)`);
+
+    } catch (error) {
+      logger.error('Erreur génération PDF de test:', error);
+      res.status(500).json({
+        error: 'Erreur lors de la génération du PDF de test',
+        code: 'ERREUR_PDF_TEST',
         details: error.message
       });
     }

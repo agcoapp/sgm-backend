@@ -14,12 +14,23 @@ const adhesionSchema = z.object({
     .regex(/^[a-zA-ZÀ-ÿ\s\-'\.]+$/, 'Le nom contient des caractères invalides'),
 
   date_naissance: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide (YYYY-MM-DD)')
+    .regex(/^\d{2}-\d{2}-\d{4}$/, 'Format de date invalide (DD-MM-YYYY)')
     .refine(dateStr => {
-      const date = new Date(dateStr);
+      // Convertir DD-MM-YYYY vers Date
+      const [jour, mois, annee] = dateStr.split('-');
+      const date = new Date(annee, mois - 1, jour); // mois - 1 car Date() utilise 0-11
+      if (isNaN(date.getTime())) return false;
+      
       const now = new Date();
       const age = now.getFullYear() - date.getFullYear();
-      return age >= 18 && age <= 100;
+      const monthDiff = now.getMonth() - date.getMonth();
+      
+      // Ajustement précis de l'âge
+      const realAge = (monthDiff < 0 || (monthDiff === 0 && now.getDate() < date.getDate())) 
+        ? age - 1 
+        : age;
+        
+      return realAge >= 18 && realAge <= 100;
     }, 'Vous devez être âgé entre 18 et 100 ans'),
 
   lieu_naissance: z.string()
@@ -41,7 +52,11 @@ const adhesionSchema = z.object({
   date_entree_congo: z.string()
     .regex(/^\d{2}-\d{2}-\d{4}$/, 'Format de date invalide (DD-MM-YYYY)')
     .refine(dateStr => {
-      const date = new Date(dateStr);
+      // Convertir DD-MM-YYYY vers Date
+      const [jour, mois, annee] = dateStr.split('-');
+      const date = new Date(annee, mois - 1, jour);
+      if (isNaN(date.getTime())) return false;
+      
       const now = new Date();
       return date <= now;
     }, 'La date d\'entrée au Congo ne peut être future'),
@@ -71,9 +86,13 @@ const adhesionSchema = z.object({
     .regex(/^[a-zA-Z0-9]+$/, 'Format invalide (lettres majuscules et chiffres uniquement)'),
 
   date_emission_piece: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide (YYYY-MM-DD)')
+    .regex(/^\d{2}-\d{2}-\d{4}$/, 'Format de date invalide (DD-MM-YYYY)')
     .refine(dateStr => {
-      const date = new Date(dateStr);
+      // Convertir DD-MM-YYYY vers Date
+      const [jour, mois, annee] = dateStr.split('-');
+      const date = new Date(annee, mois - 1, jour);
+      if (isNaN(date.getTime())) return false;
+      
       const now = new Date();
       return date <= now;
     }, 'La date d\'émission ne peut être future'),

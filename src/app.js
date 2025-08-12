@@ -3,11 +3,12 @@ const express = require('express');
 const cors = require('cors');
 const logger = require('./config/logger');
 const { helmet, generalLimiter } = require('./middleware/security');
-const { clerkMiddleware } = require('./config/clerk');
+// const { clerkMiddleware } = require('./config/clerk'); // COMMENTÉ - Clerk remplacé par auth locale
 
 // Routes
 const healthRoutes = require('./routes/health');
-const authRoutes = require('./routes/auth');
+const authRoutes = require('./routes/auth'); // Routes auth locale (remplace Clerk)
+const secretaireRoutes = require('./routes/secretaire'); // Routes tableau de bord secrétaire
 const registrationRoutes = require('./routes/registration');
 const adhesionRoutes = require('./routes/adhesion');
 
@@ -31,8 +32,8 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Clerk middleware for authentication (applies to all routes)
-app.use(clerkMiddleware);
+// COMMENTÉ - Clerk middleware for authentication (applies to all routes)
+// app.use(clerkMiddleware);
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -54,7 +55,8 @@ if (!fs.existsSync(logsDir)) {
 
 // Routes
 app.use('/api/health', healthRoutes);
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRoutes); // Routes authentification locale
+app.use('/api/secretaire', secretaireRoutes); // Routes tableau de bord secrétaire
 app.use('/api/register', registrationRoutes);
 app.use('/api/adhesion', adhesionRoutes);
 
@@ -67,20 +69,16 @@ app.get('/api', (req, res) => {
     authors: ['Elvis Destin OLEMBE', 'Mondésir NTSOUMOU'],
     endpoints: {
       health: '/api/health',
-      auth_test: '/api/auth/test (GET)',
-      auth_signup: '/api/auth/signup (POST) - After Clerk signup',
-      auth_signin: '/api/auth/signin (POST) - After Clerk signin', 
-      auth_signout: '/api/auth/signout (POST)',
-      auth_me: '/api/auth/me (GET) - Protected',
-      auth_status: '/api/auth/status (GET)',
+      auth_connexion: '/api/auth/connexion (POST) - Connexion locale',
+      auth_profil: '/api/auth/profil (GET) - Profil utilisateur connecté',
+      auth_changer_mot_passe: '/api/auth/changer-mot-passe (POST) - Changer mot de passe',
+      auth_recuperation: '/api/auth/demander-recuperation (POST) - Récupération par email',
+      secretaire_tableau_bord: '/api/secretaire/tableau-bord (GET) - Tableau de bord secrétaire',
+      secretaire_creer_identifiants: '/api/secretaire/creer-identifiants (POST) - Créer identifiants',
+      adhesion_soumettre: '/api/adhesion/soumettre (POST) - Soumettre demande adhésion',
+      adhesion_statut: '/api/adhesion/statut (GET) - Statut demande adhésion',
       register: '/api/register (POST) - Complete member registration',
-      register_status: '/api/register/status (GET) - Get registration status',
-      members: '/api/members (GET)',
-      member: '/api/members/:id (PATCH)',
-      signatures: '/api/signatures (POST)',
-      photos: '/api/photos/:id (GET)',
-      verify: '/api/verify/:id (GET)',
-      profile: '/api/profile (GET)'
+      register_status: '/api/register/status (GET) - Get registration status'
     },
     documentation: 'See README.md for full API documentation'
   });

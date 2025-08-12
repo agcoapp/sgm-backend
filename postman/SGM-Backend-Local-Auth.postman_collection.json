@@ -1,0 +1,635 @@
+{
+  "info": {
+    "name": "SGM Backend - Local Authentication",
+    "description": "API Collection for SGM Backend with Local Authentication System\n\n## Authentication Flow:\n1. Secretary creates credentials for members who paid\n2. Members login with username/password\n3. Must change password on first login\n4. Must submit membership form after password change\n\n## Test Credentials:\n- **President:** `jean.president` / `MotPasse123!`\n- **Secretary:** `marie.secretaire` / `MotPasse123!`\n\n## Base URL:\n`http://localhost:3000`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🏥 Health Check",
+      "item": [
+        {
+          "name": "Basic Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            }
+          }
+        },
+        {
+          "name": "Detailed Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/detailed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", "detailed"]
+            }
+          }
+        },
+        {
+          "name": "API Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api",
+              "host": ["{{baseUrl}}"],
+              "path": ["api"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Login - Secretary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', jsonData.token);",
+                  "    pm.test('Login successful', () => {",
+                  "        pm.expect(jsonData.token).to.exist;",
+                  "        pm.expect(jsonData.utilisateur.role).to.eql('SECRETAIRE_GENERALE');",
+                  "    });",
+                  "} else {",
+                  "    pm.test('Login failed', () => {",
+                  "        pm.expect(pm.response.code).to.be.oneOf([401, 400]);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nom_utilisateur\": \"marie.secretaire\",\n  \"mot_passe\": \"MotPasse123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/connexion",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "connexion"]
+            }
+          }
+        },
+        {
+          "name": "Login - President",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', jsonData.token);",
+                  "    pm.test('Login successful', () => {",
+                  "        pm.expect(jsonData.token).to.exist;",
+                  "        pm.expect(jsonData.utilisateur.role).to.eql('PRESIDENT');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nom_utilisateur\": \"jean.president\",\n  \"mot_passe\": \"MotPasse123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/connexion",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "connexion"]
+            }
+          }
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/profil",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "profil"]
+            }
+          }
+        },
+        {
+          "name": "Get User Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/statut",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "statut"]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ancien_mot_passe\": \"MotPasse123!\",\n  \"nouveau_mot_passe\": \"NouveauMotPasse123!\",\n  \"confirmer_mot_passe\": \"NouveauMotPasse123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/changer-mot-passe",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "changer-mot-passe"]
+            }
+          }
+        },
+        {
+          "name": "Request Password Recovery",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"president@sgm-gabon.org\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/demander-recuperation",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "demander-recuperation"]
+            }
+          }
+        },
+        {
+          "name": "Reset Password with Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"RECOVERY_TOKEN_HERE\",\n  \"nouveau_mot_passe\": \"NouveauMotPasse123!\",\n  \"confirmer_mot_passe\": \"NouveauMotPasse123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/reinitialiser-mot-passe",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "reinitialiser-mot-passe"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/deconnexion",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "deconnexion"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👩‍💼 Secretary Dashboard",
+      "item": [
+        {
+          "name": "Dashboard - Members who paid but haven't submitted form",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/tableau-bord?page=1&limite=10&recherche=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "tableau-bord"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limite",
+                  "value": "10"
+                },
+                {
+                  "key": "recherche",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Credentials for Member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_utilisateur\": 3,\n  \"telephone\": \"+241066000003\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/creer-identifiants",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "creer-identifiants"]
+            }
+          }
+        },
+        {
+          "name": "Mark Member as Paid",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_utilisateur\": 4\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/marquer-paye",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "marquer-paye"]
+            }
+          }
+        },
+        {
+          "name": "List All Members (with filters)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/membres?page=1&limite=20&filtre=tous&recherche=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "membres"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limite",
+                  "value": "20"
+                },
+                {
+                  "key": "filtre",
+                  "value": "tous",
+                  "description": "Options: tous, paye, non_paye, formulaire_soumis, approuve, en_attente"
+                },
+                {
+                  "key": "recherche",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📝 Membership Applications",
+      "item": [
+        {
+          "name": "Submit Membership Application",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "prenoms",
+                  "value": "Jean Michel",
+                  "type": "text"
+                },
+                {
+                  "key": "nom",
+                  "value": "Ondoa",
+                  "type": "text"
+                },
+                {
+                  "key": "date_naissance",
+                  "value": "15-06-1985",
+                  "type": "text"
+                },
+                {
+                  "key": "lieu_naissance",
+                  "value": "Libreville",
+                  "type": "text"
+                },
+                {
+                  "key": "adresse",
+                  "value": "123 Avenue de la Paix, Brazzaville",
+                  "type": "text"
+                },
+                {
+                  "key": "profession",
+                  "value": "Ingénieur Informatique",
+                  "type": "text"
+                },
+                {
+                  "key": "ville_residence",
+                  "value": "Brazzaville",
+                  "type": "text"
+                },
+                {
+                  "key": "date_entree_congo",
+                  "value": "15-01-2020",
+                  "type": "text"
+                },
+                {
+                  "key": "employeur_ecole",
+                  "value": "OPEN-TECH Solutions",
+                  "type": "text"
+                },
+                {
+                  "key": "telephone",
+                  "value": "+242069012345",
+                  "type": "text"
+                },
+                {
+                  "key": "type_piece_identite",
+                  "value": "PASSEPORT",
+                  "type": "text"
+                },
+                {
+                  "key": "numero_piece_identite",
+                  "value": "GA9876543",
+                  "type": "text"
+                },
+                {
+                  "key": "date_emission_piece",
+                  "value": "10-03-2022",
+                  "type": "text"
+                },
+                {
+                  "key": "prenom_conjoint",
+                  "value": "Marie Claire",
+                  "type": "text"
+                },
+                {
+                  "key": "nom_conjoint",
+                  "value": "Ondoa",
+                  "type": "text"
+                },
+                {
+                  "key": "nombre_enfants",
+                  "value": "2",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "jean.ondoa@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "photo_profil",
+                  "description": "Profile photo (JPEG/PNG, max 5MB)",
+                  "type": "file"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/adhesion/soumettre",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "adhesion", "soumettre"]
+            }
+          }
+        },
+        {
+          "name": "Get Application Status (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/adhesion/statut?telephone=+242069012345&reference=N°001/AGCO/P/8-2025",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "adhesion", "statut"],
+              "query": [
+                {
+                  "key": "telephone",
+                  "value": "+242069012345"
+                },
+                {
+                  "key": "reference",
+                  "value": "N°001/AGCO/P/8-2025"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Preview Template (Dev)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/adhesion/preview-template",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "adhesion", "preview-template"]
+            }
+          }
+        },
+        {
+          "name": "Test PDF Generation (Dev)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/adhesion/test-pdf",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "adhesion", "test-pdf"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Member Registration (Legacy)",
+      "description": "Legacy registration endpoints - may be deprecated in favor of adhesion system",
+      "item": [
+        {
+          "name": "Complete Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "multipart/form-data"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "phone",
+                  "value": "+241069012345",
+                  "type": "text"
+                },
+                {
+                  "key": "address",
+                  "value": "123 Avenue de la Paix, Libreville",
+                  "type": "text"
+                },
+                {
+                  "key": "id_number",
+                  "value": "GA1234567890",
+                  "type": "text"
+                },
+                {
+                  "key": "id_type",
+                  "value": "PASSPORT",
+                  "type": "text"
+                },
+                {
+                  "key": "id_front_photo",
+                  "description": "ID front photo",
+                  "type": "file"
+                },
+                {
+                  "key": "id_back_photo",
+                  "description": "ID back photo",
+                  "type": "file"
+                },
+                {
+                  "key": "selfie_photo",
+                  "description": "Selfie photo",
+                  "type": "file"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "register"]
+            }
+          }
+        },
+        {
+          "name": "Get Registration Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/register/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "register", "status"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  }
+}

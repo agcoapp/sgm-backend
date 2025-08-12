@@ -6,6 +6,9 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding database...');
 
+  // Générer mot de passe haché pour les utilisateurs test
+  const motPasseHash = await bcrypt.hash('MotPasse123!', 12);
+
   // Create a test president user
   const president = await prisma.utilisateur.upsert({
     where: { email: 'president@sgm-gabon.org' },
@@ -22,9 +25,14 @@ async function main() {
       role: 'PRESIDENT',
       code_formulaire: 'Gabon/SGM/PRES001',
       type_piece_identite: 'PASSEPORT',
-      photo_piece_url: 'https://via.placeholder.com/400x300',
+      // photo_piece_url: 'https://via.placeholder.com/400x300', // SUPPRIMÉ - champ n'existe plus
       photo_profil_url: 'https://via.placeholder.com/300x400',
       carte_emise_le: new Date(),
+      nom_utilisateur: 'jean.president',
+      mot_passe_hash: motPasseHash,
+      doit_changer_mot_passe: false,
+      a_paye: true,
+      a_soumis_formulaire: true
     },
   });
 
@@ -44,14 +52,20 @@ async function main() {
       role: 'SECRETAIRE_GENERALE',
       code_formulaire: 'Congo/SGM/SEC001',
       type_piece_identite: 'CARTE_CONSULAIRE',
-      photo_piece_url: 'https://via.placeholder.com/400x300',
+      // photo_piece_url: 'https://via.placeholder.com/400x300', // SUPPRIMÉ - champ n'existe plus
       photo_profil_url: 'https://via.placeholder.com/300x400',
       carte_emise_le: new Date(),
+      nom_utilisateur: 'marie.secretaire',
+      mot_passe_hash: motPasseHash,
+      doit_changer_mot_passe: false,
+      a_paye: true,
+      a_soumis_formulaire: true
     },
   });
 
   // Create test pending members
   const pendingMembers = await Promise.all([
+    // Membre qui a payé mais n'a pas soumis le formulaire
     prisma.utilisateur.upsert({
       where: { email: 'member1@example.com' },
       update: {},
@@ -66,10 +80,13 @@ async function main() {
         statut: 'EN_ATTENTE',
         role: 'MEMBRE',
         type_piece_identite: 'PASSEPORT',
-        photo_piece_url: 'https://via.placeholder.com/400x300',
+        // photo_piece_url: 'https://via.placeholder.com/400x300', // SUPPRIMÉ
         photo_profil_url: 'https://via.placeholder.com/300x400',
+        a_paye: true, // A payé
+        a_soumis_formulaire: false // Mais n'a pas soumis le formulaire
       },
     }),
+    // Membre qui n'a ni payé ni soumis le formulaire
     prisma.utilisateur.upsert({
       where: { email: 'member2@example.com' },
       update: {},
@@ -84,8 +101,10 @@ async function main() {
         statut: 'EN_ATTENTE',
         role: 'MEMBRE',
         type_piece_identite: 'CARTE_CONSULAIRE',
-        photo_piece_url: 'https://via.placeholder.com/400x300',
+        // photo_piece_url: 'https://via.placeholder.com/400x300', // SUPPRIMÉ
         photo_profil_url: 'https://via.placeholder.com/300x400',
+        a_paye: false, // N'a pas payé
+        a_soumis_formulaire: false // N'a pas soumis le formulaire
       },
     }),
   ]);
