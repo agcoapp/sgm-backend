@@ -20,6 +20,11 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Create logs directory with proper permissions
+echo "📁 Creating logs directory..."
+mkdir -p logs
+chmod 755 logs
+
 # Seed database (only if not already seeded)
 echo "🌱 Seeding database..."
 node prisma/seed-production.js
