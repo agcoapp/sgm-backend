@@ -9,6 +9,7 @@ async function main() {
   // Générer mot de passe haché pour les utilisateurs test
   const motPasseHash = await bcrypt.hash('MotPasse123!', 12);
 
+  
   // Create a test president user
   const president = await prisma.utilisateur.upsert({
     where: { email: 'president@sgm-gabon.org' },

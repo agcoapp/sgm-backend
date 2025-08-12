@@ -8,7 +8,7 @@
     "dev": "nodemon src/server.js",
     "setup": "chmod +x scripts/*.sh && ./scripts/setup-dev.sh",
     "build": "npx prisma generate --schema=./prisma/schema.prisma",
-    "postinstall": "npx prisma generate --schema=./prisma/schema.prisma",
+    "railway:start": "./scripts/railway-start.sh",
     "railway:deploy": "npx prisma migrate deploy --schema=./prisma/schema.prisma && npm run db:seed:prod",
     "db:seed:prod": "node prisma/seed-production.js",
     "db:migrate": "npx prisma migrate dev --schema=./prisma/schema.prisma",
