@@ -20,14 +20,14 @@ async function main() {
       email: 'president@sgm-gabon.org',
       telephone: '+242057424200',
       adresse: 'Siège SGM, Libreville, Gabon',
-      date_naissance: new Date('14-04-1965'),
+      date_naissance: new Date(1965, 3, 14), // 14-04-1965 en format français
       lieu_naissance: 'Libreville',
       profession: 'Président Association',
       ville_residence: 'Brazzaville',
-      date_entree_congo: new Date('2000-01-01'),
+      date_entree_congo: new Date(2000, 0, 1), // 01-01-2000 en format français
       employeur_ecole: 'Les Ateliers Reunis',
       type_piece_identite: 'PASSEPORT',
-      date_emission_piece: new Date('2020-01-01'),
+      date_emission_piece: new Date(2020, 0, 1), // 01-01-2020 en format français
       statut: 'APPROUVE',
       role: 'PRESIDENT',
       code_formulaire: 'N°001/AGCO/P/01-2025',
@@ -52,14 +52,14 @@ async function main() {
       email: 'secretaire@sgm-gabon.org',
       telephone: '+242066000002',
       adresse: 'Siège SGM, Brazzaville, Congo',
-      date_naissance: new Date('15-05-1985'),
+      date_naissance: new Date(1985, 4, 15), // 15-05-1985 en format français
       lieu_naissance: 'Brazzaville',
       profession: 'Secrétaire Générale',
       ville_residence: 'Brazzaville',
-      date_entree_congo: new Date('01-01-2010'),
+      date_entree_congo: new Date(2010, 0, 1), // 01-01-2010 en format français
       employeur_ecole: 'SGM Association',
       type_piece_identite: 'CARTE_CONSULAIRE',
-      date_emission_piece: new Date('01-01-2020'),
+      date_emission_piece: new Date(2020, 0, 1), // 01-01-2020 en format français
       statut: 'APPROUVE',
       role: 'SECRETAIRE_GENERALE',
       code_formulaire: 'N°002/AGCO/SG/01-2025',
