@@ -5,7 +5,11 @@ nixPkgs = ['nodejs-18_x']
 cmds = ['npm ci --omit=dev']
 
 [phases.build]
-cmds = ['echo "Build completed - ready to start"']
+cmds = [
+  'npx prisma generate --schema=./prisma/schema.prisma',
+  'npx prisma migrate deploy --schema=./prisma/schema.prisma',
+  'node prisma/seed-production.js'
+]
 
 [start]
-cmd = './scripts/railway-start.sh'
+cmd = 'npm start'
