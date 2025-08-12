@@ -4,7 +4,10 @@ const winston = require('winston');
 const getTransports = () => {
   const transports = [];
   
+  console.log('🔍 NODE_ENV:', process.env.NODE_ENV);
+  
   if (process.env.NODE_ENV === 'production') {
+    console.log('📦 Using console logging for production');
     // En production (Railway), utiliser uniquement console
     transports.push(new winston.transports.Console({
       format: winston.format.combine(
@@ -16,6 +19,7 @@ const getTransports = () => {
       )
     }));
   } else {
+    console.log('📁 Using file + console logging for development');
     // En développement, utiliser fichiers + console
     transports.push(
       new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
