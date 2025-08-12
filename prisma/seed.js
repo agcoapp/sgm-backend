@@ -9,7 +9,7 @@ async function main() {
   // Générer mot de passe haché pour les utilisateurs test
   const motPasseHash = await bcrypt.hash('MotPasse123!', 12);
 
-  
+
   // Create a test president user
   const president = await prisma.utilisateur.upsert({
     where: { email: 'president@sgm-gabon.org' },
@@ -21,10 +21,10 @@ async function main() {
       email: 'president@sgm-gabon.org',
       telephone: '+241066000001',
       adresse: 'Libreville, Gabon',
-      date_naissance: new Date('1980-01-01'),
+      date_naissance: new Date('15-05-1985'),
       statut: 'APPROUVE',
       role: 'PRESIDENT',
-      code_formulaire: 'Gabon/SGM/PRES001',
+      code_formulaire: 'N°002/AGCO/SG/01-2025',
       type_piece_identite: 'PASSEPORT',
       // photo_piece_url: 'https://via.placeholder.com/400x300', // SUPPRIMÉ - champ n'existe plus
       photo_profil_url: 'https://via.placeholder.com/300x400',
@@ -48,7 +48,7 @@ async function main() {
       email: 'secretary@sgm-gabon.org',
       telephone: '+241066000002',
       adresse: 'Brazzaville, Congo',
-      date_naissance: new Date('1985-05-15'),
+      date_naissance: new Date('15-05-1985'),
       statut: 'APPROUVE',
       role: 'SECRETAIRE_GENERALE',
       code_formulaire: 'Congo/SGM/SEC001',
@@ -77,7 +77,7 @@ async function main() {
         email: 'member1@example.com',
         telephone: '+241066000003',
         adresse: 'Port-Gentil, Gabon',
-        date_naissance: new Date('1990-03-20'),
+        date_naissance: new Date('15-05-1985'),
         statut: 'EN_ATTENTE',
         role: 'MEMBRE',
         type_piece_identite: 'PASSEPORT',
