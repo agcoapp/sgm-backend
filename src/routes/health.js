@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
     healthCheck.services.database = 'healthy';
     
     // Test Prisma client
-    const userCount = await prisma.user.count();
+    const userCount = await prisma.utilisateur.count();
     healthCheck.services.database_stats = {
       status: 'healthy',
       total_users: userCount
@@ -68,7 +68,7 @@ router.get('/detailed', async (req, res) => {
     // Database query performance
     try {
       const start = Date.now();
-      await prisma.user.count();
+      await prisma.utilisateur.count();
       const queryTime = Date.now() - start;
       
       checks.database_performance = {
