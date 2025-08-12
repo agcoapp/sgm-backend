@@ -48,7 +48,6 @@ Thumbs.db
 *~
 
 # Prisma
-prisma/migrations/
 /generated/prisma
 
 # Project documentation and non-code files
