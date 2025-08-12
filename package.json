@@ -7,15 +7,15 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "setup": "chmod +x scripts/*.sh && ./scripts/setup-dev.sh",
-    "build": "npx prisma generate",
-    "postinstall": "npx prisma generate",
-    "railway:deploy": "npx prisma migrate deploy && npm run db:seed:prod",
+    "build": "npx prisma generate --schema=./prisma/schema.prisma",
+    "postinstall": "npx prisma generate --schema=./prisma/schema.prisma",
+    "railway:deploy": "npx prisma migrate deploy --schema=./prisma/schema.prisma && npm run db:seed:prod",
     "db:seed:prod": "node prisma/seed-production.js",
-    "db:migrate": "npx prisma migrate dev",
-    "db:push": "npx prisma db push",
-    "db:deploy": "npx prisma migrate deploy",
-    "db:studio": "npx prisma studio",
-    "db:reset": "npx prisma migrate reset --force",
+    "db:migrate": "npx prisma migrate dev --schema=./prisma/schema.prisma",
+    "db:push": "npx prisma db push --schema=./prisma/schema.prisma", 
+    "db:deploy": "npx prisma migrate deploy --schema=./prisma/schema.prisma",
+    "db:studio": "npx prisma studio --schema=./prisma/schema.prisma",
+    "db:reset": "npx prisma migrate reset --force --schema=./prisma/schema.prisma",
     "db:seed": "node prisma/seed.js",
     "test": "jest",
     "lint": "eslint src/",
@@ -61,9 +61,7 @@
     "prisma": "^6.13.0"
   },
   "engines": {
-    "node": ">=18.0.0"
-  },
-  "prisma": {
-    "seed": "node prisma/seed.js"
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   }
 }
