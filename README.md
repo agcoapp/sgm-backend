@@ -156,7 +156,6 @@ docker run -p 3000:3000 sgm-backend
 
 ## 👥 Authors
 - Elvis Destin OLEMBE
-- Mondésir NTSOUMOU
 
 ## 📄 License
 ISC

@@ -73,34 +73,6 @@ async function main() {
     },
   });
 
-  // Create a test member who paid but hasn't submitted form (for secretary dashboard)
-  const testMember = await prisma.utilisateur.upsert({
-    where: { email: 'membre.test@example.com' },
-    update: {},
-    create: {
-      prenoms: 'Jean Claude',
-      nom: 'Mbongo',
-      numero_piece_identite: 'TEST001',
-      email: 'membre.test@example.com',
-      telephone: '+241066000999',
-      adresse: 'Port-Gentil, Gabon',
-      date_naissance: new Date(1990, 2, 20), // 20-03-1990 en format français
-      lieu_naissance: 'Port-Gentil',
-      profession: 'Ingénieur',
-      ville_residence: 'Port-Gentil',
-      date_entree_congo: new Date(2020, 0, 15), // 15-01-2020 en format français
-      employeur_ecole: 'Total Gabon',
-      type_piece_identite: 'PASSEPORT',
-      date_emission_piece: new Date(2023, 5, 10), // 10-06-2023 en format français
-      statut: 'EN_ATTENTE',
-      role: 'MEMBRE',
-      photo_profil_url: 'https://via.placeholder.com/300x400',
-      a_paye: true, // A payé
-      a_soumis_formulaire: false, // Mais n'a pas soumis le formulaire
-      doit_changer_mot_passe: true
-    },
-  });
-
   // Create initial audit log
   await prisma.journalAudit.create({
     data: {
