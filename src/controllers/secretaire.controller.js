@@ -93,7 +93,8 @@ class ControleurSecretaire {
       res.status(500).json({
         erreur: 'Erreur lors de la récupération du tableau de bord',
         code: 'ERREUR_TABLEAU_BORD',
-        details: process.env.NODE_ENV === 'production' ? undefined : error.message
+        details: error.message,
+        field: error.meta?.field_name || 'unknown'
       });
     }
   }
