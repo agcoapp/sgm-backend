@@ -63,7 +63,8 @@ class ControleurSecretaire {
       });
 
       // Statistiques générales
-      const statistiques = await this.obtenirStatistiques();
+      const controleur = this;
+      const statistiques = await controleur.obtenirStatistiques();
 
       res.json({
         message: 'Tableau de bord secrétaire récupéré',
