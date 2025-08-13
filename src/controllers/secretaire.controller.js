@@ -4,6 +4,7 @@ const serviceAuth = require('../services/auth.service');
 const { creerIdentifiantsSchema, creerNouveauMembreSchema } = require('../schemas/auth.schema');
 
 class ControleurSecretaire {
+
   /**
    * Tableau de bord secrétaire - Lister les membres qui ont payé mais n'ont pas soumis le formulaire
    */
@@ -543,7 +544,7 @@ class ControleurSecretaire {
           ]
         },
         include: {
-          FormulaireAdhesion: {
+          formulaires_adhesion: {
             where: { est_version_active: true }
           }
         },
@@ -574,7 +575,7 @@ class ControleurSecretaire {
             statut: user.statut,
             code_formulaire: user.code_formulaire,
             soumis_le: user.modifie_le,
-            formulaire_actuel: user.FormulaireAdhesion[0] || null
+            formulaire_actuel: user.formulaires_adhesion[0] || null
           })),
           pagination: {
             page: parseInt(page),
@@ -865,6 +866,483 @@ class ControleurSecretaire {
       res.status(500).json({
         erreur: 'Erreur lors de la suppression du formulaire',
         code: 'ERREUR_SUPPRESSION_FORMULAIRE'
+      });
+    }
+  }
+
+  /**
+   * Modifier un formulaire d'adhésion
+   */
+  async modifierFormulaire(req, res) {
+    try {
+      const idSecretaire = req.user.id;
+      const { id_utilisateur, modifications } = req.body;
+
+      if (!id_utilisateur || !modifications) {
+        return res.status(400).json({
+          erreur: 'ID utilisateur et modifications requis',
+          code: 'DONNEES_MANQUANTES'
+        });
+      }
+
+      // Vérifier que l'utilisateur existe et a soumis un formulaire
+      const utilisateur = await prisma.utilisateur.findUnique({
+        where: { id: id_utilisateur }
+      });
+
+      if (!utilisateur || !utilisateur.a_soumis_formulaire) {
+        return res.status(404).json({
+          erreur: 'Utilisateur ou formulaire non trouvé',
+          code: 'UTILISATEUR_FORMULAIRE_INTROUVABLE'
+        });
+      }
+
+      // Construire l'objet de mise à jour avec les modifications autorisées
+      const donneesModification = {};
+      const champsAutorises = [
+        'prenoms', 'nom', 'telephone', 'email', 'adresse', 'profession',
+        'ville_residence', 'employeur_ecole', 'prenom_conjoint', 'nom_conjoint',
+        'nombre_enfants', 'signature_membre_url'
+      ];
+
+      for (const champ of champsAutorises) {
+        if (modifications.hasOwnProperty(champ)) {
+          donneesModification[champ] = modifications[champ];
+        }
+      }
+
+      // Mettre à jour l'utilisateur
+      const utilisateurModifie = await prisma.utilisateur.update({
+        where: { id: id_utilisateur },
+        data: donneesModification
+      });
+
+      // Créer un journal d'audit
+      await prisma.journalAudit.create({
+        data: {
+          id_utilisateur: idSecretaire,
+          action: 'MODIFIER_FORMULAIRE',
+          details: {
+            utilisateur_modifie: id_utilisateur,
+            nom_complet: `${utilisateur.prenoms} ${utilisateur.nom}`,
+            modifications: donneesModification
+          },
+          adresse_ip: req.ip,
+          agent_utilisateur: req.get('User-Agent')
+        }
+      });
+
+      logger.info(`Formulaire modifié pour utilisateur ${id_utilisateur} par secrétaire ${idSecretaire}`, {
+        modifications: donneesModification
+      });
+
+      res.json({
+        message: 'Formulaire modifié avec succès',
+        utilisateur: {
+          id: utilisateurModifie.id,
+          nom_complet: `${utilisateurModifie.prenoms} ${utilisateurModifie.nom}`,
+          statut: utilisateurModifie.statut
+        }
+      });
+
+    } catch (error) {
+      logger.error('Erreur modification formulaire:', error);
+      res.status(500).json({
+        erreur: 'Erreur lors de la modification du formulaire',
+        code: 'ERREUR_MODIFICATION_FORMULAIRE'
+      });
+    }
+  }
+
+  /**
+   * Récupérer tous les formulaires approuvés
+   */
+  async obtenirFormulairesApprouves(req, res) {
+    try {
+      const { page = 1, limite = 20 } = req.query;
+      const offset = (parseInt(page) - 1) * parseInt(limite);
+
+      const formulaires = await prisma.utilisateur.findMany({
+        where: {
+          statut: 'APPROUVE',
+          a_soumis_formulaire: true
+        },
+        select: {
+          id: true,
+          numero_adhesion: true,
+          prenoms: true,
+          nom: true,
+          telephone: true,
+          email: true,
+          code_formulaire: true,
+          carte_emise_le: true,
+          photo_profil_url: true,
+          signature_membre_url: true,
+          cree_le: true,
+          modifie_le: true
+        },
+        orderBy: {
+          carte_emise_le: 'desc'
+        },
+        skip: offset,
+        take: parseInt(limite)
+      });
+
+      const total = await prisma.utilisateur.count({
+        where: {
+          statut: 'APPROUVE',
+          a_soumis_formulaire: true
+        }
+      });
+
+      // Formater les dates
+            const formulairesFormates = formulaires.map(formulaire => ({
+        ...formulaire,
+        carte_emise_le: formulaire.carte_emise_le ? new Date(formulaire.carte_emise_le) : null,
+        date_creation: new Date(formulaire.cree_le),
+        derniere_modification: new Date(formulaire.modifie_le)
+      }));
+
+      res.json({
+        formulaires: formulairesFormates,
+        pagination: {
+          page: parseInt(page),
+          limite: parseInt(limite),
+          total,
+          pages_total: Math.ceil(total / parseInt(limite))
+        }
+      });
+
+    } catch (error) {
+      logger.error('Erreur récupération formulaires approuvés:', error);
+      res.status(500).json({
+        erreur: 'Erreur lors de la récupération des formulaires approuvés',
+        code: 'ERREUR_FORMULAIRES_APPROUVES'
+      });
+    }
+  }
+
+  /**
+   * Lister tous les membres approuvés
+   */
+  async listerMembresApprouves(req, res) {
+    try {
+      const { page = 1, limite = 50, recherche } = req.query;
+      const offset = (parseInt(page) - 1) * parseInt(limite);
+
+      let whereClause = {
+        statut: 'APPROUVE',
+        est_actif: true
+      };
+
+      // Ajouter filtrage par recherche si fourni
+      if (recherche) {
+        whereClause.OR = [
+          { prenoms: { contains: recherche, mode: 'insensitive' } },
+          { nom: { contains: recherche, mode: 'insensitive' } },
+          { numero_adhesion: { contains: recherche, mode: 'insensitive' } },
+          { code_formulaire: { contains: recherche, mode: 'insensitive' } }
+        ];
+      }
+
+      const membres = await prisma.utilisateur.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          numero_adhesion: true,
+          prenoms: true,
+          nom: true,
+          telephone: true,
+          email: true,
+          code_formulaire: true,
+          photo_profil_url: true,
+          carte_emise_le: true,
+          derniere_connexion: true,
+          nom_utilisateur: true
+        },
+        orderBy: {
+          nom: 'asc'
+        },
+        skip: offset,
+        take: parseInt(limite)
+      });
+
+      const total = await prisma.utilisateur.count({
+        where: whereClause
+      });
+
+      // Formater les dates
+            const membresFormates = membres.map(membre => ({
+        ...membre,
+        nom_complet: `${membre.prenoms} ${membre.nom}`,
+        carte_emise_le: membre.carte_emise_le ? new Date(membre.carte_emise_le) : null,
+        derniere_connexion: membre.derniere_connexion ? new Date(membre.derniere_connexion) : 'Jamais connecté'
+      }));
+
+      res.json({
+        membres: membresFormates,
+        pagination: {
+          page: parseInt(page),
+          limite: parseInt(limite),
+          total,
+          pages_total: Math.ceil(total / parseInt(limite))
+        }
+      });
+
+    } catch (error) {
+      logger.error('Erreur listing membres approuvés:', error);
+      res.status(500).json({
+        erreur: 'Erreur lors du listing des membres approuvés',
+        code: 'ERREUR_LISTING_MEMBRES'
+      });
+    }
+  }
+
+  /**
+   * Lister toutes les cartes de membres
+   */
+  async listerCartesMembres(req, res) {
+    try {
+      const { page = 1, limite = 20 } = req.query;
+      const offset = (parseInt(page) - 1) * parseInt(limite);
+
+      const cartes = await prisma.utilisateur.findMany({
+        where: {
+          statut: 'APPROUVE',
+          carte_emise_le: {
+            not: null
+          },
+          est_actif: true
+        },
+        select: {
+          id: true,
+          numero_adhesion: true,
+          prenoms: true,
+          nom: true,
+          code_formulaire: true,
+          url_qr_code: true,
+          carte_emise_le: true,
+          photo_profil_url: true
+        },
+        orderBy: {
+          carte_emise_le: 'desc'
+        },
+        skip: offset,
+        take: parseInt(limite)
+      });
+
+      const total = await prisma.utilisateur.count({
+        where: {
+          statut: 'APPROUVE',
+          carte_emise_le: {
+            not: null
+          },
+          est_actif: true
+        }
+      });
+
+      // Récupérer la signature du président active
+      const signaturePresident = await prisma.signature.findFirst({
+        where: { est_active: true },
+        include: {
+          utilisateur: {
+            select: {
+              prenoms: true,
+              nom: true
+            }
+          }
+        }
+      });
+
+      // Formater les cartes
+            const cartesFormatees = cartes.map(carte => ({
+        id: carte.id,
+        numero_adhesion: carte.numero_adhesion,
+        nom_complet: `${carte.prenoms} ${carte.nom}`,
+        code_formulaire: carte.code_formulaire,
+        url_qr_code: carte.url_qr_code,
+        photo_profil_url: carte.photo_profil_url,
+        date_emission: new Date(carte.carte_emise_le),
+        signature_presidente_url: signaturePresident?.url_signature || null,
+        nom_presidente: signaturePresident ? `${signaturePresident.utilisateur.prenoms} ${signaturePresident.utilisateur.nom}` : null
+      }));
+
+      res.json({
+        cartes: cartesFormatees,
+        pagination: {
+          page: parseInt(page),
+          limite: parseInt(limite),
+          total,
+          pages_total: Math.ceil(total / parseInt(limite))
+        }
+      });
+
+    } catch (error) {
+      logger.error('Erreur listing cartes membres:', error);
+      res.status(500).json({
+        erreur: 'Erreur lors du listing des cartes de membres',
+        code: 'ERREUR_LISTING_CARTES'
+      });
+    }
+  }
+
+  /**
+   * Désactiver un utilisateur
+   */
+  async desactiverUtilisateur(req, res) {
+    try {
+      const idSecretaire = req.user.id;
+      const { id_utilisateur, raison } = req.body;
+
+      if (!id_utilisateur || !raison) {
+        return res.status(400).json({
+          erreur: 'ID utilisateur et raison requis',
+          code: 'DONNEES_MANQUANTES'
+        });
+      }
+
+      // Vérifier que l'utilisateur existe et est actif
+      const utilisateur = await prisma.utilisateur.findUnique({
+        where: { id: id_utilisateur }
+      });
+
+      if (!utilisateur) {
+        return res.status(404).json({
+          erreur: 'Utilisateur non trouvé',
+          code: 'UTILISATEUR_INTROUVABLE'
+        });
+      }
+
+      if (!utilisateur.est_actif) {
+        return res.status(400).json({
+          erreur: 'L\'utilisateur est déjà désactivé',
+          code: 'UTILISATEUR_DEJA_DESACTIVE'
+        });
+      }
+
+      // Empêcher la désactivation d'un secrétaire ou président
+      if (utilisateur.role !== 'MEMBRE') {
+        return res.status(403).json({
+          erreur: 'Impossible de désactiver un secrétaire ou président',
+          code: 'DESACTIVATION_INTERDITE'
+        });
+      }
+
+      // Désactiver l'utilisateur
+      const utilisateurDesactive = await prisma.utilisateur.update({
+        where: { id: id_utilisateur },
+        data: {
+          est_actif: false,
+          desactive_le: new Date(),
+          desactive_par: idSecretaire,
+          raison_desactivation: raison
+        }
+      });
+
+      // Créer un journal d'audit
+      await prisma.journalAudit.create({
+        data: {
+          id_utilisateur: idSecretaire,
+          action: 'DESACTIVER_UTILISATEUR',
+          details: {
+            utilisateur_desactive: id_utilisateur,
+            nom_complet: `${utilisateur.prenoms} ${utilisateur.nom}`,
+            raison
+          },
+          adresse_ip: req.ip,
+          agent_utilisateur: req.get('User-Agent')
+        }
+      });
+
+      logger.info(`Utilisateur ${id_utilisateur} désactivé par secrétaire ${idSecretaire}`, {
+        nom_utilisateur: utilisateur.nom_utilisateur,
+        raison
+      });
+
+            res.json({
+        message: 'Utilisateur désactivé avec succès',
+        utilisateur: {
+          id: utilisateurDesactive.id,
+          nom_complet: `${utilisateurDesactive.prenoms} ${utilisateurDesactive.nom}`,
+          desactive_le: new Date(utilisateurDesactive.desactive_le),
+          raison_desactivation: utilisateurDesactive.raison_desactivation
+        }
+      });
+
+    } catch (error) {
+      logger.error('Erreur désactivation utilisateur:', error);
+      res.status(500).json({
+        erreur: 'Erreur lors de la désactivation de l\'utilisateur',
+        code: 'ERREUR_DESACTIVATION_UTILISATEUR'
+      });
+    }
+  }
+
+  /**
+   * Mettre à jour la signature du président
+   */
+  async mettreAJourSignature(req, res) {
+    try {
+      const idSecretaire = req.user.id;
+      const { url_signature, cloudinary_id } = req.body;
+
+      if (!url_signature || !cloudinary_id) {
+        return res.status(400).json({
+          erreur: 'URL signature et ID Cloudinary requis',
+          code: 'DONNEES_MANQUANTES'
+        });
+      }
+
+      // Désactiver l'ancienne signature
+      await prisma.signature.updateMany({
+        where: { est_active: true },
+        data: { est_active: false }
+      });
+
+      // Créer la nouvelle signature (assumant que le secrétaire gère la signature du président)
+      // Pour une implémentation plus stricte, on pourrait vérifier que l'utilisateur est bien président
+      const nouvelleSignature = await prisma.signature.create({
+        data: {
+          id_president: idSecretaire, // En réalité, ce devrait être l'ID du président
+          url_signature,
+          cloudinary_id,
+          est_active: true
+        }
+      });
+
+      // Créer un journal d'audit
+      await prisma.journalAudit.create({
+        data: {
+          id_utilisateur: idSecretaire,
+          action: 'METTRE_A_JOUR_SIGNATURE',
+          details: {
+            ancienne_signature: 'désactivée',
+            nouvelle_signature: url_signature
+          },
+          adresse_ip: req.ip,
+          agent_utilisateur: req.get('User-Agent')
+        }
+      });
+
+      logger.info(`Signature mise à jour par secrétaire ${idSecretaire}`, {
+        signature_id: nouvelleSignature.id,
+        url: url_signature
+      });
+
+            res.json({
+        message: 'Signature mise à jour avec succès',
+        signature: {
+          id: nouvelleSignature.id,
+          url_signature: nouvelleSignature.url_signature,
+          date_upload: new Date(nouvelleSignature.telecharge_le)
+        }
+      });
+
+    } catch (error) {
+      logger.error('Erreur mise à jour signature:', error);
+      res.status(500).json({
+        erreur: 'Erreur lors de la mise à jour de la signature',
+        code: 'ERREUR_MAJ_SIGNATURE'
       });
     }
   }

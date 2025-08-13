@@ -77,6 +77,7 @@ class AdhesionController {
           nom_conjoint: donneesValidees.nom_conjoint || null,
           nombre_enfants: donneesValidees.nombre_enfants || 0,
           email: donneesValidees.email || null, // Email optionnel pour adhésion et récupération mot de passe
+          signature_membre_url: donneesValidees.signature_membre_url || null, // Signature optionnelle du membre
           statut: 'EN_ATTENTE',
           role: 'MEMBRE',
           a_soumis_formulaire: true // Marquer comme formulaire soumis

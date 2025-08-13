@@ -494,4 +494,371 @@ router.delete('/supprimer-formulaire',
   controleurSecretaire.supprimerFormulaire
 );
 
+/**
+ * @swagger
+ * /api/secretaire/modifier-formulaire:
+ *   put:
+ *     summary: Modifier un formulaire
+ *     description: Modifier les informations d'un formulaire d'adhésion
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [id_utilisateur, modifications]
+ *             properties:
+ *               id_utilisateur:
+ *                 type: integer
+ *                 example: 3
+ *               modifications:
+ *                 type: object
+ *                 properties:
+ *                   prenoms:
+ *                     type: string
+ *                     example: "Jean Claude"
+ *                   nom:
+ *                     type: string
+ *                     example: "Mbongo"
+ *                   telephone:
+ *                     type: string
+ *                     example: "+241 01 02 03 04"
+ *                   email:
+ *                     type: string
+ *                     example: "jean.mbongo@example.com"
+ *                   adresse:
+ *                     type: string
+ *                     example: "123 Avenue de la République"
+ *                   signature_membre_url:
+ *                     type: string
+ *                     example: "https://res.cloudinary.com/signature.png"
+ *     responses:
+ *       200:
+ *         description: Formulaire modifié avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Formulaire modifié avec succès"
+ *                 utilisateur:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     nom_complet:
+ *                       type: string
+ *                     statut:
+ *                       type: string
+ *       404:
+ *         description: Utilisateur ou formulaire non trouvé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.put('/modifier-formulaire', 
+  authentifierJWT, 
+  verifierRoleSecretaire, 
+  generalLimiter,
+  controleurSecretaire.modifierFormulaire
+);
+
+/**
+ * @swagger
+ * /api/secretaire/formulaires-approuves:
+ *   get:
+ *     summary: Liste des formulaires approuvés
+ *     description: Récupérer tous les formulaires d'adhésion approuvés
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Numéro de page
+ *       - in: query
+ *         name: limite
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Nombre d'éléments par page
+ *     responses:
+ *       200:
+ *         description: Liste des formulaires approuvés
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 formulaires:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       numero_adhesion:
+ *                         type: string
+ *                       nom_complet:
+ *                         type: string
+ *                       code_formulaire:
+ *                         type: string
+ *                       carte_emise_le:
+ *                         type: string
+ *                       signature_membre_url:
+ *                         type: string
+ *                 pagination:
+ *                   $ref: '#/components/schemas/Pagination'
+ */
+router.get('/formulaires-approuves', 
+  authentifierJWT, 
+  verifierRoleSecretaire, 
+  generalLimiter,
+  controleurSecretaire.obtenirFormulairesApprouves
+);
+
+/**
+ * @swagger
+ * /api/secretaire/membres-approuves:
+ *   get:
+ *     summary: Liste des membres approuvés
+ *     description: Lister tous les membres approuvés avec recherche
+ *     tags: [Members]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Numéro de page
+ *       - in: query
+ *         name: limite
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Nombre d'éléments par page
+ *       - in: query
+ *         name: recherche
+ *         schema:
+ *           type: string
+ *         description: Recherche par nom, prénom, numéro d'adhésion ou code formulaire
+ *     responses:
+ *       200:
+ *         description: Liste des membres approuvés
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 membres:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       numero_adhesion:
+ *                         type: string
+ *                       nom_complet:
+ *                         type: string
+ *                       nom_utilisateur:
+ *                         type: string
+ *                       derniere_connexion:
+ *                         type: string
+ *                 pagination:
+ *                   $ref: '#/components/schemas/Pagination'
+ */
+router.get('/membres-approuves', 
+  authentifierJWT, 
+  verifierRoleSecretaire, 
+  generalLimiter,
+  controleurSecretaire.listerMembresApprouves
+);
+
+/**
+ * @swagger
+ * /api/secretaire/cartes-membres:
+ *   get:
+ *     summary: Liste des cartes de membres
+ *     description: Lister toutes les cartes de membres émises
+ *     tags: [Members]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Numéro de page
+ *       - in: query
+ *         name: limite
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Nombre d'éléments par page
+ *     responses:
+ *       200:
+ *         description: Liste des cartes de membres
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 cartes:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       numero_adhesion:
+ *                         type: string
+ *                       nom_complet:
+ *                         type: string
+ *                       code_formulaire:
+ *                         type: string
+ *                       url_qr_code:
+ *                         type: string
+ *                       date_emission:
+ *                         type: string
+ *                       signature_presidente_url:
+ *                         type: string
+ *                 pagination:
+ *                   $ref: '#/components/schemas/Pagination'
+ */
+router.get('/cartes-membres', 
+  authentifierJWT, 
+  verifierRoleSecretaire, 
+  generalLimiter,
+  controleurSecretaire.listerCartesMembres
+);
+
+/**
+ * @swagger
+ * /api/secretaire/desactiver-utilisateur:
+ *   post:
+ *     summary: Désactiver un utilisateur
+ *     description: Désactiver un membre (empêche l'accès à la plateforme)
+ *     tags: [Members]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [id_utilisateur, raison]
+ *             properties:
+ *               id_utilisateur:
+ *                 type: integer
+ *                 example: 5
+ *               raison:
+ *                 type: string
+ *                 example: "Non-respect du règlement intérieur"
+ *     responses:
+ *       200:
+ *         description: Utilisateur désactivé avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Utilisateur désactivé avec succès"
+ *                 utilisateur:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     nom_complet:
+ *                       type: string
+ *                     desactive_le:
+ *                       type: string
+ *                     raison_desactivation:
+ *                       type: string
+ *       403:
+ *         description: Impossible de désactiver un secrétaire ou président
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Utilisateur non trouvé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post('/desactiver-utilisateur', 
+  authentifierJWT, 
+  verifierRoleSecretaire, 
+  generalLimiter,
+  controleurSecretaire.desactiverUtilisateur
+);
+
+/**
+ * @swagger
+ * /api/secretaire/mettre-a-jour-signature:
+ *   post:
+ *     summary: Mettre à jour signature présidente
+ *     description: Mettre à jour la signature qui sera apposée sur tous les formulaires approuvés
+ *     tags: [Secretary]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [url_signature, cloudinary_id]
+ *             properties:
+ *               url_signature:
+ *                 type: string
+ *                 example: "https://res.cloudinary.com/signature.png"
+ *               cloudinary_id:
+ *                 type: string
+ *                 example: "sgm/signatures/president_signature_123"
+ *     responses:
+ *       200:
+ *         description: Signature mise à jour avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Signature mise à jour avec succès"
+ *                 signature:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     url_signature:
+ *                       type: string
+ *                     date_upload:
+ *                       type: string
+ */
+router.post('/mettre-a-jour-signature', 
+  authentifierJWT, 
+  verifierRoleSecretaire, 
+  generalLimiter,
+  controleurSecretaire.mettreAJourSignature
+);
+
 module.exports = router;

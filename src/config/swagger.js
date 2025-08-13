@@ -8,26 +8,41 @@ const options = {
       title: 'SGM Backend API',
       version: '1.0.0',
       description: `
-        API pour le système de gestion des membres de l'Association des Gabonais du Congo (SGM).
+        API complète pour le système de gestion des membres de l'Association des Gabonais du Congo (SGM).
         
         ## 🔄 Workflow Principal:
         1. **Secrétaire crée les identifiants** après paiement en espèces
         2. **Membre se connecte** avec nom d'utilisateur/mot de passe générés
         3. **Membre change le mot de passe** lors de la première connexion (obligatoire)
-        4. **Membre soumet le formulaire d'adhésion** avec détails personnels + photos
-        5. **Secrétaire examine et approuve/rejette** les formulaires
+        4. **Membre soumet le formulaire d'adhésion** avec détails personnels + photos + signature optionnelle
+        5. **Secrétaire examine, modifie si nécessaire, et approuve/rejette** les formulaires
         6. **Les formulaires approuvés reçoivent automatiquement** la signature du président
+        7. **Membres peuvent consulter leurs données** et télécharger leurs documents
+        
+        ## 📊 Fonctionnalités Secrétaire:
+        - Gestion complète des membres (création, approbation, désactivation)
+        - Modification des formulaires d'adhésion
+        - Liste des membres approuvés avec recherche
+        - Gestion des cartes de membres
+        - Mise à jour de la signature présidentielle
+        
+        ## 👤 Fonctionnalités Membre:
+        - Changement de mots de passe (temporaire et normal)
+        - Réinitialisation par email
+        - Consultation du formulaire et carte de membre
+        - Téléchargement PDF des documents
         
         ## 🔐 Authentification:
         - JWT Bearer Token requis pour les endpoints protégés
         - Rôles: PRESIDENT, SECRETAIRE_GENERALE, MEMBRE
+        - Comptes désactivés bloqués automatiquement
         
         ## 🗓️ Format de Date:
         Toutes les dates utilisent le format français: \`DD-MM-YYYY\`
         
-        ## 📱 Contacts:
-        - **Frontend Team:** Utilisez cette documentation pour l'intégration
-        - **Base URL Local:** \`http://localhost:3000\`
+        ## 📱 Base URLs:
+        - **Local:** \`http://localhost:3000\`
+        - **Production:** \`https://sgmapi-production.up.railway.app\`
         - **Base URL Production:** \`https://sgmapi-production.up.railway.app\`
       `,
       contact: {
@@ -139,6 +154,15 @@ const options = {
           properties: {
             id_utilisateur: { type: 'integer', example: 3 },
             raison: { type: 'string', example: 'Documents illisibles ou incomplets' }
+          }
+        },
+        Pagination: {
+          type: 'object',
+          properties: {
+            page: { type: 'integer', example: 1, description: 'Numéro de page actuelle' },
+            limite: { type: 'integer', example: 20, description: 'Nombre d\'éléments par page' },
+            total: { type: 'integer', example: 150, description: 'Nombre total d\'éléments' },
+            pages_total: { type: 'integer', example: 8, description: 'Nombre total de pages' }
           }
         },
         Error: {

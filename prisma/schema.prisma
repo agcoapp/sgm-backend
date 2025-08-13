@@ -38,11 +38,15 @@ model Utilisateur {
   
   // Champs système
   email                  String?   @unique // Email optionnel (pour récupération mot de passe)
+  signature_membre_url   String?   // URL de la signature du membre (optionnelle)
   statut                 Statut    @default(EN_ATTENTE)
   role                   Role      @default(MEMBRE)
   code_formulaire        String?   @unique
   url_qr_code            String?
   carte_emise_le         DateTime?
+  raison_rejet           String?   // Raison du rejet si statut = REJETE
+  rejete_le              DateTime? // Date de rejet
+  rejete_par             Int?      // ID du secrétaire qui a rejeté
   
   // Authentification locale
   nom_utilisateur        String?   @unique // Nom d'utilisateur généré par secrétaire
@@ -51,6 +55,10 @@ model Utilisateur {
   a_paye                 Boolean   @default(false) // True si a payé physiquement
   a_soumis_formulaire    Boolean   @default(false) // True si a soumis le formulaire
   derniere_connexion     DateTime? // Dernière connexion
+  est_actif              Boolean   @default(true) // True si compte actif, False si désactivé
+  desactive_le           DateTime? // Date de désactivation
+  desactive_par          Int?      // ID du secrétaire qui a désactivé
+  raison_desactivation   String?   // Raison de la désactivation
   
   cree_le                DateTime  @default(now())
   modifie_le             DateTime  @updatedAt

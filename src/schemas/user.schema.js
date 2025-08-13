@@ -117,7 +117,13 @@ const adhesionSchema = z.object({
     .min(0, "Le nombre d'enfants ne peut être négatif")
     .max(20, "Le nombre d'enfants semble trop élevé")
     .optional()
-    .or(z.literal(0))
+    .or(z.literal(0)),
+
+  // Signature optionnelle du membre (URL fournie par le frontend)
+  signature_membre_url: z.string()
+    .url('URL de signature invalide')
+    .optional()
+    .or(z.literal(''))
 });
 
 // File validation schema

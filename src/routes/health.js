@@ -4,6 +4,77 @@ const logger = require('../config/logger');
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * /api/health:
+ *   get:
+ *     summary: Vérification de santé de base
+ *     description: Vérification rapide de l'état du serveur et des services
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Système en bonne santé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   enum: [healthy, degraded]
+ *                   example: "healthy"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2025-08-13T10:30:00.000Z"
+ *                 uptime:
+ *                   type: number
+ *                   example: 3600.5
+ *                 services:
+ *                   type: object
+ *                   properties:
+ *                     database:
+ *                       type: string
+ *                       enum: [healthy, unhealthy]
+ *                     database_stats:
+ *                       type: object
+ *                       properties:
+ *                         status:
+ *                           type: string
+ *                         total_users:
+ *                           type: integer
+ *                 memory:
+ *                   type: object
+ *                   properties:
+ *                     rss:
+ *                       type: string
+ *                       example: "45 MB"
+ *                     heapTotal:
+ *                       type: string
+ *                       example: "20 MB"
+ *                     heapUsed:
+ *                       type: string
+ *                       example: "15 MB"
+ *                 environment:
+ *                   type: object
+ *                   properties:
+ *                     node_version:
+ *                       type: string
+ *                       example: "v18.17.0"
+ *                     environment:
+ *                       type: string
+ *                       example: "production"
+ *       503:
+ *         description: Système dégradé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "degraded"
+ */
 router.get('/', async (req, res) => {
   const healthCheck = {
     status: 'healthy',
@@ -48,7 +119,75 @@ router.get('/', async (req, res) => {
   res.status(statusCode).json(healthCheck);
 });
 
-// Detailed health check for monitoring systems
+/**
+ * @swagger
+ * /api/health/detailed:
+ *   get:
+ *     summary: Vérification de santé détaillée
+ *     description: Vérification complète pour systèmes de monitoring
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Rapport de santé détaillé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   enum: [pass, warn, fail]
+ *                   example: "pass"
+ *                 version:
+ *                   type: string
+ *                   example: "1.0.0"
+ *                 releaseId:
+ *                   type: string
+ *                   example: "release-123"
+ *                 checks:
+ *                   type: object
+ *                   properties:
+ *                     database_connection:
+ *                       type: object
+ *                       properties:
+ *                         status:
+ *                           type: string
+ *                           enum: [pass, fail]
+ *                         time:
+ *                           type: string
+ *                           format: date-time
+ *                         error:
+ *                           type: string
+ *                           description: Message d'erreur si échec
+ *                     database_performance:
+ *                       type: object
+ *                       properties:
+ *                         status:
+ *                           type: string
+ *                           enum: [pass, warn, fail]
+ *                         time:
+ *                           type: string
+ *                           format: date-time
+ *                         response_time:
+ *                           type: string
+ *                           example: "45ms"
+ *                         error:
+ *                           type: string
+ *                           description: Message d'erreur si échec
+ *       500:
+ *         description: Erreur lors de la vérification
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "fail"
+ *                 error:
+ *                   type: string
+ *                   example: "Erreur interne du serveur"
+ */
 router.get('/detailed', async (req, res) => {
   try {
     const checks = {};

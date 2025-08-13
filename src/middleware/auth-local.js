@@ -31,7 +31,8 @@ const authentifierJWT = async (req, res, next) => {
         statut: true,
         doit_changer_mot_passe: true,
         a_paye: true,
-        a_soumis_formulaire: true
+        a_soumis_formulaire: true,
+        est_actif: true
       }
     });
 
@@ -39,6 +40,14 @@ const authentifierJWT = async (req, res, next) => {
       return res.status(401).json({
         erreur: 'Utilisateur non trouvé',
         code: 'UTILISATEUR_INVALIDE'
+      });
+    }
+
+    // Vérifier que l'utilisateur est actif
+    if (!utilisateur.est_actif) {
+      return res.status(401).json({
+        erreur: 'Compte désactivé',
+        code: 'COMPTE_DESACTIVE'
       });
     }
 

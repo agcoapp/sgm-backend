@@ -377,6 +377,332 @@
               "path": ["api", "secretaire", "supprimer-formulaire"]
             }
           }
+        },
+        {
+          "name": "Modify Form",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_utilisateur\": 3,\n  \"modifications\": {\n    \"prenoms\": \"Jean Claude Modified\",\n    \"telephone\": \"+241066123456\",\n    \"email\": \"modified@example.com\",\n    \"adresse\": \"123 Modified Avenue\",\n    \"signature_membre_url\": \"https://res.cloudinary.com/signature.png\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/modifier-formulaire",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "modifier-formulaire"]
+            }
+          }
+        },
+        {
+          "name": "List Approved Forms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/formulaires-approuves?page=1&limite=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "formulaires-approuves"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limite",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Approved Members",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/membres-approuves?page=1&limite=50&recherche=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "membres-approuves"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limite",
+                  "value": "50"
+                },
+                {
+                  "key": "recherche",
+                  "value": "",
+                  "description": "Search by name, phone, adhesion number or form code"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Member Cards",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/cartes-membres?page=1&limite=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "cartes-membres"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limite",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Deactivate User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_utilisateur\": 5,\n  \"raison\": \"Non-respect du règlement intérieur de l'association\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/desactiver-utilisateur",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "desactiver-utilisateur"]
+            }
+          }
+        },
+        {
+          "name": "Update President Signature",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url_signature\": \"https://res.cloudinary.com/sgm/image/upload/v1234567890/sgm/signatures/president_signature_new.png\",\n  \"cloudinary_id\": \"sgm/signatures/president_signature_new\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/mettre-a-jour-signature",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "mettre-a-jour-signature"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Member Endpoints",
+      "item": [
+        {
+          "name": "Change Temporary Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nouveau_mot_passe\": \"MonNouveauMotPasse123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/changer-mot-passe-temporaire",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "changer-mot-passe-temporaire"]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ancien_mot_passe\": \"AncienMotPasse123!\",\n  \"nouveau_mot_passe\": \"NouveauMotPasse123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/changer-mot-passe",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "changer-mot-passe"]
+            }
+          }
+        },
+        {
+          "name": "Request Password Reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"jean.mbongo@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/demander-reinitialisation",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "demander-reinitialisation"]
+            }
+          }
+        },
+        {
+          "name": "Reset Password with Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"reset-token-from-email\",\n  \"nouveau_mot_passe\": \"NouveauMotPasse123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/reinitialiser-mot-passe",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "reinitialiser-mot-passe"]
+            }
+          }
+        },
+        {
+          "name": "View Adhesion Form",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/formulaire-adhesion",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "formulaire-adhesion"]
+            }
+          }
+        },
+        {
+          "name": "View Member Card",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/carte-membre",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "carte-membre"]
+            }
+          }
+        },
+        {
+          "name": "Download Adhesion Form PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/telecharger-formulaire",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "telecharger-formulaire"]
+            }
+          }
+        },
+        {
+          "name": "Download Member Card PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/telecharger-carte",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "telecharger-carte"]
+            }
+          }
         }
       ]
     },

@@ -9,6 +9,7 @@ const { helmet, generalLimiter } = require('./middleware/security');
 const healthRoutes = require('./routes/health');
 const authRoutes = require('./routes/auth'); // Routes auth locale (remplace Clerk)
 const secretaireRoutes = require('./routes/secretaire'); // Routes tableau de bord secrétaire
+const membreRoutes = require('./routes/membre'); // Routes membre
 const registrationRoutes = require('./routes/registration');
 const adhesionRoutes = require('./routes/adhesion');
 
@@ -60,6 +61,7 @@ if (!fs.existsSync(logsDir)) {
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes); // Routes authentification locale
 app.use('/api/secretaire', secretaireRoutes); // Routes tableau de bord secrétaire
+app.use('/api/membre', membreRoutes); // Routes membre
 app.use('/api/register', registrationRoutes);
 app.use('/api/adhesion', adhesionRoutes);
 
