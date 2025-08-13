@@ -85,10 +85,15 @@ class ControleurSecretaire {
       });
 
     } catch (error) {
-      logger.error('Erreur tableau de bord secrétaire:', error);
+      logger.error('Erreur tableau de bord secrétaire:', {
+        message: error.message,
+        stack: error.stack,
+        code: error.code
+      });
       res.status(500).json({
         erreur: 'Erreur lors de la récupération du tableau de bord',
-        code: 'ERREUR_TABLEAU_BORD'
+        code: 'ERREUR_TABLEAU_BORD',
+        details: process.env.NODE_ENV === 'production' ? undefined : error.message
       });
     }
   }
