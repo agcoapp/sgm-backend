@@ -84,7 +84,7 @@ class ServiceAuthentification {
     try {
       // Générer nom d'utilisateur et mot de passe
       const nomUtilisateur = await this.genererNomUtilisateur(prenoms, nom);
-      const motPasseTemporaire = this.genererMotPasseAleatoire();
+      const motPasseTemporaire = this.genererMotPasseTemporaire();
       const motPasseHash = await bcrypt.hash(motPasseTemporaire, 12);
 
       // Créer le nouveau membre
