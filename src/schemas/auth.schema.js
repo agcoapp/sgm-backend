@@ -53,7 +53,28 @@ const reinitialiserMotPasseSchema = z.object({
   path: ['confirmer_mot_passe']
 });
 
-// Schéma pour créer des identifiants (secrétaire)
+// Schéma pour créer un nouveau membre avec identifiants (secrétaire)
+const creerNouveauMembreSchema = z.object({
+  prenoms: z.string()
+    .min(1, 'Les prénoms sont requis')
+    .max(100, 'Les prénoms ne peuvent pas dépasser 100 caractères')
+    .regex(/^[a-zA-Z\s\-'À-ÿ]+$/, 'Les prénoms ne peuvent contenir que des lettres, espaces et tirets'),
+  
+  nom: z.string()
+    .min(1, 'Le nom est requis') 
+    .max(100, 'Le nom ne peut pas dépasser 100 caractères')
+    .regex(/^[a-zA-Z\s\-'À-ÿ]+$/, 'Le nom ne peut contenir que des lettres, espaces et tirets'),
+  
+  a_paye: z.boolean()
+    .default(true), // Par défaut vrai car le secrétaire crée seulement après paiement
+  
+  telephone: z.string()
+    .min(1, 'Le numéro de téléphone est requis')
+    .regex(/^\+?[0-9\s\-()]{8,}$/, 'Format de téléphone invalide')
+    .optional() // Optionnel lors de la création initiale
+});
+
+// DEPRECATED: Ancien schéma pour créer des identifiants (utilisateur existant)
 const creerIdentifiantsSchema = z.object({
   id_utilisateur: z.number()
     .int('L\'ID utilisateur doit être un entier')
@@ -69,5 +90,6 @@ module.exports = {
   changerMotPasseSchema,
   recuperationMotPasseSchema,
   reinitialiserMotPasseSchema,
-  creerIdentifiantsSchema
+  creerNouveauMembreSchema,
+  creerIdentifiantsSchema // Garder pour compatibilité
 };

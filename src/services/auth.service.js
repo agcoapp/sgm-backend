@@ -78,7 +78,65 @@ class ServiceAuthentification {
   }
 
   /**
-   * Créer des identifiants pour un membre qui a payé
+   * Créer un nouveau membre avec identifiants (workflow secrétaire)
+   */
+  async creerNouveauMembre(prenoms, nom, aPaye, telephone, idSecretaire) {
+    try {
+      // Générer nom d'utilisateur et mot de passe
+      const nomUtilisateur = await this.genererNomUtilisateur(prenoms, nom);
+      const motPasseTemporaire = this.genererMotPasseAleatoire();
+      const motPasseHash = await bcrypt.hash(motPasseTemporaire, 12);
+
+      // Créer le nouveau membre
+      const nouveauMembre = await prisma.utilisateur.create({
+        data: {
+          prenoms: prenoms.trim(),
+          nom: nom.trim(),
+          telephone: telephone || null,
+          nom_utilisateur: nomUtilisateur,
+          mot_passe_hash: motPasseHash,
+          doit_changer_mot_passe: true, // Doit changer à la première connexion
+          a_paye: aPaye,
+          a_soumis_formulaire: false, // Devra remplir le formulaire après connexion
+          statut: 'EN_ATTENTE',
+          role: 'MEMBRE',
+          cree_le: new Date(),
+          modifie_le: new Date()
+        }
+      });
+
+      // Journal d'audit
+      await prisma.journalAudit.create({
+        data: {
+          id_utilisateur: nouveauMembre.id,
+          action: 'CREATION_NOUVEAU_MEMBRE',
+          details: {
+            nom_complet: `${prenoms} ${nom}`,
+            nom_utilisateur: nomUtilisateur,
+            cree_par: idSecretaire,
+            a_paye: aPaye
+          },
+          adresse_ip: null,
+          agent_utilisateur: 'SYSTEME_SECRETAIRE'
+        }
+      });
+
+      logger.info(`Nouveau membre créé: ${nomUtilisateur} par secrétaire ${idSecretaire}`);
+
+      return {
+        nom_utilisateur: nomUtilisateur,
+        mot_passe_temporaire: motPasseTemporaire,
+        utilisateur: nouveauMembre
+      };
+
+    } catch (error) {
+      logger.error('Erreur création nouveau membre:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * DEPRECATED: Créer des identifiants pour un membre qui a payé (utilisateur existant)
    */
   async creerIdentifiants(idUtilisateur, idSecretaire) {
     try {

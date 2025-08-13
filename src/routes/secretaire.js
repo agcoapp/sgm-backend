@@ -21,8 +21,20 @@ router.get('/tableau-bord',
 );
 
 /**
+ * @route POST /api/secretaire/creer-nouveau-membre
+ * @desc Créer un nouveau membre avec identifiants (workflow moderne)
+ * @access Private (Secrétaire/Président)
+ */
+router.post('/creer-nouveau-membre', 
+  authentifierJWT, 
+  verifierRoleSecretaire, 
+  generalLimiter,
+  controleurSecretaire.creerNouveauMembre
+);
+
+/**
  * @route POST /api/secretaire/creer-identifiants
- * @desc Créer des identifiants pour un membre qui a payé
+ * @desc DEPRECATED: Créer des identifiants pour un membre qui a payé (ancien système)
  * @access Private (Secrétaire/Président)
  */
 router.post('/creer-identifiants', 

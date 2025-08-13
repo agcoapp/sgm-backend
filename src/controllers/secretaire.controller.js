@@ -1,7 +1,7 @@
 const prisma = require('../config/database');
 const logger = require('../config/logger');
 const serviceAuth = require('../services/auth.service');
-const { creerIdentifiantsSchema } = require('../schemas/auth.schema');
+const { creerIdentifiantsSchema, creerNouveauMembreSchema } = require('../schemas/auth.schema');
 
 class ControleurSecretaire {
   /**
@@ -195,7 +195,59 @@ class ControleurSecretaire {
   }
 
   /**
-   * Créer des identifiants pour un membre qui a payé
+   * Créer un nouveau membre avec identifiants (workflow moderne)
+   */
+  async creerNouveauMembre(req, res) {
+    try {
+      const donneesValidees = creerNouveauMembreSchema.parse(req.body);
+      const idSecretaire = req.user.id;
+
+      // Créer le nouveau membre avec identifiants
+      const resultat = await serviceAuth.creerNouveauMembre(
+        donneesValidees.prenoms,
+        donneesValidees.nom,
+        donneesValidees.a_paye ?? true, // Default à true
+        donneesValidees.telephone,
+        idSecretaire
+      );
+
+      res.status(201).json({
+        message: 'Nouveau membre créé avec succès',
+        membre: {
+          id: resultat.utilisateur.id,
+          nom_complet: `${resultat.utilisateur.prenoms} ${resultat.utilisateur.nom}`,
+          nom_utilisateur: resultat.nom_utilisateur,
+          mot_passe_temporaire: resultat.mot_passe_temporaire,
+          a_paye: resultat.utilisateur.a_paye,
+          telephone: resultat.utilisateur.telephone
+        },
+        instructions: [
+          '🔐 Communiquez ces identifiants au membre de manière sécurisée',
+          '⚠️ Le membre devra changer son mot de passe lors de sa première connexion',
+          '📝 Le membre devra ensuite remplir son formulaire d\'adhésion complet',
+          '✅ Une fois le formulaire soumis, vous pourrez l\'approuver depuis le tableau de bord'
+        ]
+      });
+
+    } catch (error) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({
+          erreur: 'Données invalides',
+          code: 'ERREUR_VALIDATION',
+          details: error.errors
+        });
+      }
+
+      logger.error('Erreur création nouveau membre:', error);
+      res.status(500).json({
+        erreur: 'Erreur lors de la création du nouveau membre',
+        code: 'ERREUR_CREATION_NOUVEAU_MEMBRE'
+      });
+    }
+  }
+
+  /**
+   * DEPRECATED: Créer des identifiants pour un membre qui a payé (ancien système)
    */
   async creerIdentifiants(req, res) {
     try {
