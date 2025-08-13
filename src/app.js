@@ -12,6 +12,9 @@ const secretaireRoutes = require('./routes/secretaire'); // Routes tableau de bo
 const registrationRoutes = require('./routes/registration');
 const adhesionRoutes = require('./routes/adhesion');
 
+// Swagger documentation
+const { specs, swaggerUi } = require('./config/swagger');
+
 const app = express();
 
 // Trust proxy for accurate IP addresses (important for rate limiting)
@@ -60,13 +63,39 @@ app.use('/api/secretaire', secretaireRoutes); // Routes tableau de bord secréta
 app.use('/api/register', registrationRoutes);
 app.use('/api/adhesion', adhesionRoutes);
 
+// Swagger documentation routes
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'SGM Backend API Documentation',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    filter: true,
+    showExtensions: true,
+    showCommonExtensions: true
+  }
+}));
+
+// JSON specification endpoint for programmatic access
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(specs);
+});
+
 // Basic info route
 app.get('/api', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
   res.json({
     name: 'SGM Backend API',
     version: '1.0.0',
     description: 'API for Association des Gabonais du Congo - Member Management System',
     authors: ['Elvis Destin OLEMBE', 'Mondésir NTSOUMOU'],
+    documentation: {
+      swagger_ui: `${baseUrl}/api-docs`,
+      openapi_json: `${baseUrl}/api-docs.json`,
+      postman_collection: 'Available in /postman folder'
+    },
     endpoints: {
       health: '/api/health',
       auth_connexion: '/api/auth/connexion (POST) - Connexion locale',

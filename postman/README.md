@@ -1,6 +1,15 @@
-# SGM Backend - Postman API Documentation
+# 📚 SGM Backend API - Documentation Complète
 
-This folder contains Postman collections and environments for testing the SGM Backend API with the new local authentication system.
+Cette documentation complète couvre tous les endpoints de l'API SGM Backend pour l'Association des Gabonais du Congo.
+
+## 🔗 Accès à la Documentation
+
+### 1. **Swagger/OpenAPI (Recommandé pour Frontend)**
+- **UI Interactive:** `http://localhost:3000/api-docs` (local) ou `https://sgmapi-production.up.railway.app/api-docs` (production)
+- **Spécification JSON:** `http://localhost:3000/api-docs.json`
+- **Features:** Authentification intégrée, tests d'endpoints, schémas détaillés
+
+### 2. **Collections Postman**
 
 ## 📁 Files
 
@@ -86,10 +95,17 @@ sequenceDiagram
 - `POST /api/auth/deconnexion` - Logout (logging only)
 
 ### 👩‍💼 Secretary Dashboard
-- `GET /api/secretaire/tableau-bord` - Dashboard (paid members without forms)
-- `POST /api/secretaire/creer-identifiants` - Create credentials for member
+- `GET /api/secretaire/tableau-bord` - Dashboard (members with credentials, no forms)
+- `POST /api/secretaire/creer-nouveau-membre` - **NEW:** Create member + credentials in one step
+- `POST /api/secretaire/creer-identifiants` - Legacy: Create credentials for existing member
 - `POST /api/secretaire/marquer-paye` - Mark member as paid
 - `GET /api/secretaire/membres` - List all members with filters
+
+### 📋 **NEW: Form Management**
+- `GET /api/secretaire/formulaires` - List all submitted forms (filter by status)
+- `POST /api/secretaire/approuver-formulaire` - Approve form + auto president signature
+- `POST /api/secretaire/rejeter-formulaire` - Reject form with reason
+- `DELETE /api/secretaire/supprimer-formulaire` - Delete form (allows resubmission)
 
 ### 📝 Membership Applications
 - `POST /api/adhesion/soumettre` - Submit membership application
