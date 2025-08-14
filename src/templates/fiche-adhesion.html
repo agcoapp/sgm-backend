@@ -104,12 +104,13 @@
         /* Titre et photo sur la même ligne */
         .title-photo-section {
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: flex-end;
             margin-bottom: 15px;
             margin-top: 20px;
             position: relative;
             padding-top: 30px;
+            gap: 20px;
         }
 
         .title-container {
@@ -117,11 +118,13 @@
             flex: 1;
             display: flex;
             justify-content: center;
+            min-width: 0;
         }
 
         .photo-box-positioned {
-            position: absolute;
-            right: 0;
+            flex-shrink: 0;
+            position: relative;
+            right: auto;
         }
 
         .title-box {
