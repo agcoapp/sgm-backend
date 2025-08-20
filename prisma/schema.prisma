@@ -25,11 +25,14 @@ model Utilisateur {
   employeur_ecole        String?   // Employeur/Université/École
   telephone              String    // Numéro de téléphone (requis)
   
-  // Informations document d'identité
-  type_piece_identite    TypePiece? // Type de pièce d'identité
-  numero_piece_identite  String?   @unique // Numéro de la pièce d'identité
-  date_emission_piece    DateTime? // Date d'émission de la pièce d'identité
-  // photo_piece_url        String?   // Photo du document d'identité (temporairement désactivé)
+  // Informations carte consulaire (optionnelles)
+  numero_carte_consulaire String?   @unique // Numéro de la carte consulaire (optionnel)
+  date_emission_piece     DateTime? // Date d'émission de la carte consulaire (optionnelle)
+  
+  // Photos et signature
+  selfie_photo_url        String?   // Photo selfie uniquement (plus de photo pièce d'identité)
+  signature_url           String?   // Signature du membre (cloudinary link)
+  commentaire             String?   // Commentaire optionnel (max 100 caractères)
   
   // Informations familiales
   prenom_conjoint        String?   // Prénom du conjoint
@@ -52,6 +55,7 @@ model Utilisateur {
   nom_utilisateur        String?   @unique // Nom d'utilisateur généré par secrétaire
   mot_passe_hash         String?   // Hash du mot de passe
   doit_changer_mot_passe Boolean   @default(false) // True si première connexion
+  a_change_mot_passe_temporaire Boolean @default(false) // True si a déjà changé le mot de passe temporaire
   a_paye                 Boolean   @default(false) // True si a payé physiquement
   a_soumis_formulaire    Boolean   @default(false) // True si a soumis le formulaire
   derniere_connexion     DateTime? // Dernière connexion
@@ -130,7 +134,3 @@ enum Role {
   PRESIDENT
 }
 
-enum TypePiece {
-  CARTE_CONSULAIRE
-  PASSEPORT
-}

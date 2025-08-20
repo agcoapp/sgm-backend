@@ -53,6 +53,26 @@ const reinitialiserMotPasseSchema = z.object({
   path: ['confirmer_mot_passe']
 });
 
+// Schéma pour changer le mot de passe temporaire (première fois seulement)
+const changerMotPasseTemporaireSchema = z.object({
+  nouveau_mot_passe: z.string()
+    .min(8, 'Le nouveau mot de passe doit contenir au moins 8 caractères')
+    .max(100, 'Le nouveau mot de passe ne peut pas dépasser 100 caractères')
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 
+      'Le nouveau mot de passe doit contenir au moins une minuscule, une majuscule et un chiffre'),
+  
+  confirmer_mot_passe: z.string()
+    .min(1, 'La confirmation du mot de passe est requise'),
+  
+  email: z.string()
+    .email('Format d\'email invalide')
+    .max(100, 'L\'email ne peut pas dépasser 100 caractères')
+    .optional()
+}).refine((data) => data.nouveau_mot_passe === data.confirmer_mot_passe, {
+  message: 'Les mots de passe ne correspondent pas',
+  path: ['confirmer_mot_passe']
+});
+
 // Schéma pour créer un nouveau membre avec identifiants (secrétaire)
 const creerNouveauMembreSchema = z.object({
   prenoms: z.string()
@@ -88,6 +108,7 @@ const creerIdentifiantsSchema = z.object({
 module.exports = {
   connexionSchema,
   changerMotPasseSchema,
+  changerMotPasseTemporaireSchema,
   recuperationMotPasseSchema,
   reinitialiserMotPasseSchema,
   creerNouveauMembreSchema,

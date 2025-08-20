@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const prisma = require('../config/database');
 const logger = require('../config/logger');
+const { changerMotPasseTemporaireSchema } = require('../schemas/auth.schema');
 
 // Fonctions utilitaires locales
 const validerMotPasse = (motPasse) => {
@@ -20,42 +21,74 @@ const formatterDateFrancaise = (date) => {
 
 class MembreController {
   /**
-   * Changer le mot de passe temporaire (première connexion)
+   * Changer le mot de passe temporaire (première connexion seulement)
    */
   async changerMotPasseTemporaire(req, res, next) {
     try {
-      const { nouveau_mot_passe } = req.body;
+      // Valider les données d'entrée
+      const donneesValidees = changerMotPasseTemporaireSchema.parse(req.body);
+      const { nouveau_mot_passe, email } = donneesValidees;
       const utilisateurId = req.utilisateur.id;
-
-      // Vérifier que le nouveau mot de passe est valide
-      if (!validerMotPasse(nouveau_mot_passe)) {
-        const error = new Error('Le mot de passe doit contenir au moins 8 caractères, incluant majuscules, minuscules, chiffres et caractères spéciaux');
-        error.status = 400;
-        throw error;
-      }
 
       // Récupérer l'utilisateur
       const utilisateur = await prisma.utilisateur.findUnique({
         where: { id: utilisateurId }
       });
 
-      if (!utilisateur || !utilisateur.doit_changer_mot_passe) {
-        const error = new Error('Utilisateur non autorisé à changer le mot de passe temporaire');
-        error.status = 400;
+      if (!utilisateur) {
+        const error = new Error('Utilisateur non trouvé');
+        error.status = 404;
+        throw error;
+      }
+
+      // Vérifier que l'utilisateur doit changer son mot de passe
+      if (!utilisateur.doit_changer_mot_passe) {
+        const error = new Error('Vous n\'êtes pas autorisé à utiliser ce endpoint');
+        error.status = 403;
+        throw error;
+      }
+
+      // Vérifier que l'utilisateur n'a pas déjà changé son mot de passe temporaire
+      if (utilisateur.a_change_mot_passe_temporaire) {
+        const error = new Error('Vous avez déjà changé votre mot de passe temporaire. Utilisez l\'endpoint de changement de mot de passe normal.');
+        error.status = 403;
         throw error;
       }
 
       // Hasher le nouveau mot de passe
       const nouveauMotPasseHash = await bcrypt.hash(nouveau_mot_passe, 12);
 
+      // Préparer les données de mise à jour
+      const donneesUpdate = {
+        mot_passe_hash: nouveauMotPasseHash,
+        doit_changer_mot_passe: false,
+        a_change_mot_passe_temporaire: true,
+        derniere_connexion: new Date()
+      };
+
+      // Ajouter l'email si fourni
+      if (email) {
+        // Vérifier que l'email n'est pas déjà utilisé
+        const emailExistant = await prisma.utilisateur.findFirst({
+          where: { 
+            email: email,
+            id: { not: utilisateurId }
+          }
+        });
+
+        if (emailExistant) {
+          const error = new Error('Cet email est déjà utilisé par un autre utilisateur');
+          error.status = 409;
+          throw error;
+        }
+
+        donneesUpdate.email = email;
+      }
+
       // Mettre à jour l'utilisateur
       await prisma.utilisateur.update({
         where: { id: utilisateurId },
-        data: {
-          mot_passe_hash: nouveauMotPasseHash,
-          doit_changer_mot_passe: false,
-          derniere_connexion: new Date()
-        }
+        data: donneesUpdate
       });
 
       // Créer un journal d'audit
@@ -63,7 +96,10 @@ class MembreController {
         data: {
           id_utilisateur: utilisateurId,
           action: 'CHANGER_MOT_PASSE_TEMPORAIRE',
-          details: { nom_utilisateur: utilisateur.nom_utilisateur },
+          details: { 
+            nom_utilisateur: utilisateur.nom_utilisateur,
+            email_ajoute: !!email
+          },
           adresse_ip: req.ip,
           agent_utilisateur: req.get('User-Agent')
         }
@@ -71,14 +107,25 @@ class MembreController {
 
       logger.info(`Mot de passe temporaire changé pour l'utilisateur ${utilisateur.nom_utilisateur}`, {
         utilisateur_id: utilisateurId,
-        nom_utilisateur: utilisateur.nom_utilisateur
+        nom_utilisateur: utilisateur.nom_utilisateur,
+        email_ajoute: !!email
       });
 
       res.json({
-        message: 'Mot de passe changé avec succès'
+        message: 'Mot de passe changé avec succès',
+        email_ajoute: !!email
       });
 
     } catch (error) {
+      if (error.name === 'ZodError') {
+        const validationError = new Error('Données invalides');
+        validationError.status = 400;
+        validationError.details = error.errors.map(err => ({
+          champ: err.path.join('.'),
+          message: err.message
+        }));
+        return next(validationError);
+      }
       next(error);
     }
   }

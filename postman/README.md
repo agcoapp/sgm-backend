@@ -5,7 +5,7 @@ Cette documentation complète couvre tous les endpoints de l'API SGM Backend pou
 ## 🔗 Accès à la Documentation
 
 ### 1. **Swagger/OpenAPI (Recommandé pour Frontend)**
-- **UI Interactive:** `http://localhost:3000/api-docs` (local) ou `https://sgmapi-production.up.railway.app/api-docs` (production)
+- **UI Interactive:** `http://localhost:3000/api-docs` (local) ou `https://sgm-backend-production.up.railway.app/api-docs` (production)
 - **Spécification JSON:** `http://localhost:3000/api-docs.json`
 - **Features:** Authentification intégrée, tests d'endpoints, schémas détaillés
 

@@ -6,12 +6,14 @@ const adhesionSchema = z.object({
   prenoms: z.string()
     .min(2, 'Les prénoms doivent contenir au moins 2 caractères')
     .max(100, 'Les prénoms ne peuvent dépasser 100 caractères')
-    .regex(/^[a-zA-ZÀ-ÿ\s\-'\.]+$/, 'Les prénoms contiennent des caractères invalides'),
+    .regex(/^[a-zA-ZÀ-ÿ\s\-'\.]+$/, 'Les prénoms contiennent des caractères invalides')
+    .transform(str => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()), // Première lettre en majuscule
 
   nom: z.string()
     .min(2, 'Le nom doit contenir au moins 2 caractères')
     .max(50, 'Le nom ne peut dépasser 50 caractères')
-    .regex(/^[a-zA-ZÀ-ÿ\s\-'\.]+$/, 'Le nom contient des caractères invalides'),
+    .regex(/^[a-zA-ZÀ-ÿ\s\-'\.]+$/, 'Le nom contient des caractères invalides')
+    .transform(str => str.toUpperCase()), // Tout en majuscules
 
   date_naissance: z.string()
     .regex(/^\d{2}-\d{2}-\d{4}$/, 'Format de date invalide (DD-MM-YYYY)')
@@ -35,7 +37,8 @@ const adhesionSchema = z.object({
 
   lieu_naissance: z.string()
     .min(2, 'Le lieu de naissance doit contenir au moins 2 caractères')
-    .max(100, 'Le lieu de naissance ne peut dépasser 100 caractères'),
+    .max(100, 'Le lieu de naissance ne peut dépasser 100 caractères')
+    .transform(str => str.replace(/\b\w/g, l => l.toUpperCase())), // Capitaliser chaque mot
 
   adresse: z.string()
     .min(5, 'L\'adresse doit contenir au moins 5 caractères')
@@ -47,7 +50,8 @@ const adhesionSchema = z.object({
 
   ville_residence: z.string()
     .min(2, 'La ville de résidence doit contenir au moins 2 caractères')
-    .max(100, 'La ville de résidence ne peut dépasser 100 caractères'),
+    .max(100, 'La ville de résidence ne peut dépasser 100 caractères')
+    .transform(str => str.replace(/\b\w/g, l => l.toUpperCase())), // Capitaliser chaque mot
 
   date_entree_congo: z.string()
     .regex(/^\d{2}-\d{2}-\d{4}$/, 'Format de date invalide (DD-MM-YYYY)')
@@ -75,15 +79,14 @@ const adhesionSchema = z.object({
       return congoBrazzaville.test(phone) || gabon.test(phone) || france.test(phone);
     }, 'Format de téléphone invalide. Accepté: Congo (+242), Gabon (+241), France (+33)'),
 
-  // Informations pièce d'identité
-  type_piece_identite: z.enum(['CARTE_CONSULAIRE', 'PASSEPORT'], {
-    message: 'Type de pièce d\'identité invalide (CARTE_CONSULAIRE ou PASSEPORT)'
-  }),
-
-  numero_piece_identite: z.string()
-    .min(5, 'Le numéro de pièce d\'identité doit contenir au moins 5 caractères')
-    .max(20, 'Le numéro de pièce d\'identité ne peut dépasser 20 caractères')
-    .regex(/^[a-zA-Z0-9]+$/, 'Format invalide (lettres majuscules et chiffres uniquement)'),
+  // Informations carte consulaire (optionnelles)
+  numero_carte_consulaire: z.string()
+    .min(5, 'Le numéro de carte consulaire doit contenir au moins 5 caractères')
+    .max(20, 'Le numéro de carte consulaire ne peut dépasser 20 caractères')
+    .regex(/^[A-Z0-9]+$/, 'Format invalide (lettres majuscules et chiffres uniquement)')
+    .transform(str => str.toUpperCase()) // Forcer en majuscules
+    .optional()
+    .or(z.literal('')),
 
   date_emission_piece: z.string()
     .regex(/^\d{2}-\d{2}-\d{4}$/, 'Format de date invalide (DD-MM-YYYY)')
@@ -95,7 +98,9 @@ const adhesionSchema = z.object({
       
       const now = new Date();
       return date <= now;
-    }, 'La date d\'émission ne peut être future'),
+    }, 'La date d\'émission ne peut être future')
+    .optional()
+    .or(z.literal('')),
 
   // Informations familiales
   prenom_conjoint: z.string()
@@ -119,9 +124,21 @@ const adhesionSchema = z.object({
     .optional()
     .or(z.literal(0)),
 
-  // Signature optionnelle du membre (URL fournie par le frontend)
-  signature_membre_url: z.string()
+  // Photo selfie (cloudinary link)
+  selfie_photo_url: z.string()
+    .url('URL de photo selfie invalide')
+    .optional()
+    .or(z.literal('')),
+
+  // Signature du membre (cloudinary link)
+  signature_url: z.string()
     .url('URL de signature invalide')
+    .optional()
+    .or(z.literal('')),
+
+  // Commentaire optionnel (100 caractères max)
+  commentaire: z.string()
+    .max(100, 'Le commentaire ne peut dépasser 100 caractères')
     .optional()
     .or(z.literal(''))
 });

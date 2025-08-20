@@ -42,8 +42,8 @@ const options = {
         
         ## 📱 Base URLs:
         - **Local:** \`http://localhost:3000\`
-        - **Production:** \`https://sgmapi-production.up.railway.app\`
-        - **Base URL Production:** \`https://sgmapi-production.up.railway.app\`
+        - **Production:** \`https://sgm-backend-production.up.railway.app\`
+        - **Base URL Production:** \`https://sgm-backend-production.up.railway.app\`
       `,
       contact: {
         name: 'SGM Backend Team',
@@ -56,7 +56,7 @@ const options = {
         description: 'Serveur de développement'
       },
       {
-        url: 'https://sgmapi-production.up.railway.app',
+        url: 'https://sgm-backend-production.up.railway.app',
         description: 'Serveur de production'
       }
     ],

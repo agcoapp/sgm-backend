@@ -32,23 +32,21 @@ class AdhesionController {
         });
       }
 
-      // Vérifier les doublons email et numéro de pièce d'identité
-      const verificationDoublon = await prisma.utilisateur.findFirst({
-        where: {
-          OR: [
-            { email: donneesValidees.email || undefined },
-            { numero_piece_identite: donneesValidees.numero_piece_identite }
-          ]
-        }
-      });
-
-      if (verificationDoublon) {
-        const champDoublon = verificationDoublon.email === donneesValidees.email ? 'email' : 'numero_piece_identite';
-        return res.status(409).json({
-          error: `Un membre avec ce ${champDoublon === 'email' ? 'email' : 'numéro de pièce d\'identité'} existe déjà`,
-          code: 'MEMBRE_EXISTE_DEJA',
-          champ: champDoublon
+      // Vérifier les doublons numéro de carte consulaire (si fourni)
+      if (donneesValidees.numero_carte_consulaire) {
+        const verificationDoublon = await prisma.utilisateur.findFirst({
+          where: {
+            numero_carte_consulaire: donneesValidees.numero_carte_consulaire
+          }
         });
+
+        if (verificationDoublon) {
+          return res.status(409).json({
+            error: 'Un membre avec ce numéro de carte consulaire existe déjà',
+            code: 'MEMBRE_EXISTE_DEJA',
+            champ: 'numero_carte_consulaire'
+          });
+        }
       }
 
       // Générer le numéro d'adhésion automatiquement
@@ -58,7 +56,6 @@ class AdhesionController {
       // Créer l'enregistrement utilisateur
       const nouvelUtilisateur = await prisma.utilisateur.create({
         data: {
-          // clerkId: null, // COMMENTÉ - plus de Clerk
           numero_adhesion: numeroAdhesion,
           prenoms: donneesValidees.prenoms,
           nom: donneesValidees.nom,
@@ -70,36 +67,22 @@ class AdhesionController {
           date_entree_congo: convertirDateFrancaise(donneesValidees.date_entree_congo),
           employeur_ecole: donneesValidees.employeur_ecole,
           telephone: donneesValidees.telephone,
-          type_piece_identite: donneesValidees.type_piece_identite,
-          numero_piece_identite: donneesValidees.numero_piece_identite,
-          date_emission_piece: convertirDateFrancaise(donneesValidees.date_emission_piece),
+          numero_carte_consulaire: donneesValidees.numero_carte_consulaire || null,
+          date_emission_piece: convertirDateFrancaise(donneesValidees.date_emission_piece) || null,
           prenom_conjoint: donneesValidees.prenom_conjoint || null,
           nom_conjoint: donneesValidees.nom_conjoint || null,
           nombre_enfants: donneesValidees.nombre_enfants || 0,
-          email: donneesValidees.email || null, // Email optionnel pour adhésion et récupération mot de passe
-          signature_membre_url: donneesValidees.signature_membre_url || null, // Signature optionnelle du membre
+          selfie_photo_url: donneesValidees.selfie_photo_url || null,
+          signature_url: donneesValidees.signature_url || null,
+          commentaire: donneesValidees.commentaire || null,
           statut: 'EN_ATTENTE',
           role: 'MEMBRE',
           a_soumis_formulaire: true // Marquer comme formulaire soumis
         }
       });
 
-      // Upload de la photo de profil vers Cloudinary
-      logger.info(`Upload de la photo de profil pour la demande d'adhésion ${nouvelUtilisateur.id}`);
-      const urlPhotoProfile = await cloudinaryService.uploadPhoto(
-        req.files.photo_profil[0].buffer,
-        'photos_profil',
-        `utilisateur_${nouvelUtilisateur.id}_profil_${Date.now()}`
-      );
-
-      // Mettre à jour l'utilisateur avec l'URL de la photo
-      const utilisateurMisAJour = await prisma.utilisateur.update({
-        where: { id: nouvelUtilisateur.id },
-        data: {
-          photo_profil_url: urlPhotoProfile
-          // photo_piece_url: temporairement désactivé
-        }
-      });
+      // Les photos sont maintenant fournies en tant que liens Cloudinary
+      logger.info(`Demande d'adhésion créée pour l'utilisateur ${nouvelUtilisateur.id}`);
 
       // Créer le snapshot des données pour le formulaire d'adhésion
       const snapshotDonnees = {
@@ -113,35 +96,35 @@ class AdhesionController {
         date_entree_congo: donneesValidees.date_entree_congo,
         employeur_ecole: donneesValidees.employeur_ecole,
         telephone: donneesValidees.telephone,
-        type_piece_identite: donneesValidees.type_piece_identite,
-        numero_piece_identite: donneesValidees.numero_piece_identite,
+        numero_carte_consulaire: donneesValidees.numero_carte_consulaire,
         date_emission_piece: donneesValidees.date_emission_piece,
         prenom_conjoint: donneesValidees.prenom_conjoint,
         nom_conjoint: donneesValidees.nom_conjoint,
         nombre_enfants: donneesValidees.nombre_enfants,
-        // photo_piece_url: temporairement désactivé,
-        photo_profil_url: urlPhotoProfile,
+        selfie_photo_url: donneesValidees.selfie_photo_url,
+        signature_url: donneesValidees.signature_url,
+        commentaire: donneesValidees.commentaire,
         numero_adhesion: numeroAdhesion
       };
 
       // Générer le PDF du formulaire d'adhésion
-      logger.info(`Génération PDF formulaire pour utilisateur ${utilisateurMisAJour.id}`);
+      logger.info(`Génération PDF formulaire pour utilisateur ${nouvelUtilisateur.id}`);
       const pdfBuffer = await pdfGeneratorService.genererFicheAdhesion(
-        utilisateurMisAJour, 
-        urlPhotoProfile
+        nouvelUtilisateur, 
+        donneesValidees.selfie_photo_url
       );
 
       // Uploader le PDF vers Cloudinary
       const urlPdfFormulaire = await cloudinaryService.uploadFormulaireAdhesion(
         pdfBuffer,
-        utilisateurMisAJour.id,
+        nouvelUtilisateur.id,
         numeroAdhesion
       );
 
       // Créer la première version du formulaire d'adhésion
       const formulaireAdhesion = await prisma.formulaireAdhesion.create({
         data: {
-          id_utilisateur: utilisateurMisAJour.id,
+          id_utilisateur: nouvelUtilisateur.id,
           numero_version: 1,
           url_image_formulaire: urlPdfFormulaire,
           donnees_snapshot: snapshotDonnees,
@@ -152,13 +135,12 @@ class AdhesionController {
       // Créer journal d'audit
       await prisma.journalAudit.create({
         data: {
-          id_utilisateur: utilisateurMisAJour.id,
+          id_utilisateur: nouvelUtilisateur.id,
           action: 'DEMANDE_ADHESION',
           details: {
             numero_adhesion: numeroAdhesion,
             telephone: donneesValidees.telephone,
-            numero_piece_identite: donneesValidees.numero_piece_identite,
-            type_piece_identite: donneesValidees.type_piece_identite,
+            numero_carte_consulaire: donneesValidees.numero_carte_consulaire,
             formulaire_soumis: true
           },
           adresse_ip: req.ip,
@@ -166,7 +148,7 @@ class AdhesionController {
         }
       });
 
-      logger.info(`Demande d'adhésion soumise pour ${donneesValidees.prenoms} ${donneesValidees.nom} (ID: ${utilisateurMisAJour.id})`);
+      logger.info(`Demande d'adhésion soumise pour ${donneesValidees.prenoms} ${donneesValidees.nom} (ID: ${nouvelUtilisateur.id})`);
 
       // TODO: Envoyer notifications SMS et email au demandeur
       // TODO: Envoyer notification aux administrateurs
@@ -174,13 +156,13 @@ class AdhesionController {
       res.status(201).json({
         message: 'Demande d\'adhésion soumise avec succès',
         adhesion: {
-          id: utilisateurMisAJour.id,
+          id: nouvelUtilisateur.id,
           numero_adhesion: numeroAdhesion,
           nom_complet: `${donneesValidees.prenoms} ${donneesValidees.nom}`,
           telephone: donneesValidees.telephone,
-          numero_piece_identite: donneesValidees.numero_piece_identite,
-          statut: utilisateurMisAJour.statut,
-          date_soumission: utilisateurMisAJour.cree_le,
+          numero_carte_consulaire: donneesValidees.numero_carte_consulaire,
+          statut: nouvelUtilisateur.statut,
+          date_soumission: nouvelUtilisateur.cree_le,
           url_fiche_adhesion: urlPdfFormulaire // URL de téléchargement du PDF
         },
         prochaines_etapes: [

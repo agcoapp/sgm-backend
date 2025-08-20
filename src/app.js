@@ -28,7 +28,7 @@ app.use(generalLimiter);
 // CORS configuration
 app.use(cors({
   origin: process.env.FRONTEND_URL?.split(',') || ['http://localhost:3001', 'http://localhost:3000'],
-  methods:'GET,POST,PUT,DELETE',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
   optionsSuccessStatus: 200 // For legacy browser support
 }));
