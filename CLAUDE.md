@@ -69,12 +69,21 @@ npm run lint          # Run ESLint
 - **Nodemailer integration** with configurable SMTP settings
 - **HTML email templates** with responsive design for all notifications
 - **Conditional sending** - only sends to users with email addresses
-- **Three notification types:**
+- **Four notification types:**
   - Form approval (with form code and congratulations)
   - Form rejection (with specific reasons and next steps)
   - Account deactivation (with suspension details)
+  - Password reset (with secure verification links)
 - **Graceful failure handling** - system continues working if email service is unavailable
 - **Comprehensive logging** of all email operations
+
+**Password Management System:**
+- **Universal access** - all authenticated users can change passwords
+- **Email-based password reset** - secure token verification via email
+- **Smart user lookup** - find users by email OR username for reset
+- **Temporary password handling** - first-time users with optional email addition
+- **Security features** - 1-hour token expiration, strong password validation
+- **Consolidated endpoints** - simplified from 7 to 4 endpoints in `/api/auth/`
 
 ### Database Schema Key Points
 - **User model** contains both Clerk sync data and registration details
@@ -85,8 +94,11 @@ npm run lint          # Run ESLint
 
 ### API Structure
 - **Health endpoints:** `/api/health` (basic) and `/api/health/detailed` (comprehensive)
-- **Auth endpoints:** User signup/signin sync and status checks
+- **Auth endpoints:** User signup/signin sync, status checks, and **universal password management**
+- **Password management:** `/api/auth/change-password`, `/api/auth/reset-password`, `/api/auth/verify-reset`
 - **Registration endpoint:** Complete member registration with file uploads
+- **Secretary endpoints:** Member management, form approval/rejection with email notifications
+- **Member endpoints:** Profile access, membership cards, member directory
 - Role-based access control throughout
 
 ### Security Features

@@ -47,10 +47,60 @@ router.post('/connexion', loginLimiter, authController.seConnecter);
 
 /**
  * @swagger
- * /api/auth/changer-mot-passe:
+ * /api/auth/change-temporary-password:
  *   post:
- *     summary: Changer le mot de passe
- *     description: Changer le mot de passe pour l'utilisateur connecté
+ *     summary: 🔑 Changer mot de passe temporaire (première connexion)
+ *     description: |
+ *       Permet aux nouveaux utilisateurs de changer leur mot de passe temporaire
+ *       lors de leur première connexion. Peut aussi ajouter un email optionnel.
+ *     tags: [Authentication]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [nouveau_mot_passe]
+ *             properties:
+ *               nouveau_mot_passe:
+ *                 type: string
+ *                 minLength: 8
+ *                 description: Nouveau mot de passe fort (8+ caractères, majuscules, minuscules, chiffres, caractères spéciaux)
+ *                 example: "NouveauMotPasse123!"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email optionnel pour récupération de mot de passe
+ *                 example: "utilisateur@example.com"
+ *     responses:
+ *       200:
+ *         description: Mot de passe temporaire changé avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Mot de passe changé avec succès"
+ *                 email_ajoute:
+ *                   type: boolean
+ *                   example: true
+ *       403:
+ *         description: Non autorisé (déjà changé ou pas de mot de passe temporaire)
+ */
+router.post('/change-temporary-password', authentifierJWT, authController.changerMotPasseTemporaire);
+
+/**
+ * @swagger
+ * /api/auth/change-password:
+ *   post:
+ *     summary: 🔄 Changer mot de passe (tous utilisateurs)
+ *     description: |
+ *       Permet à tous les utilisateurs authentifiés de changer leur mot de passe.
+ *       Nécessite l'ancien mot de passe pour validation.
  *     tags: [Authentication]
  *     security:
  *       - BearerAuth: []
@@ -67,33 +117,30 @@ router.post('/connexion', loginLimiter, authController.seConnecter);
  *                 example: "AncienMotPasse123!"
  *               nouveau_mot_passe:
  *                 type: string
+ *                 minLength: 8
  *                 example: "NouveauMotPasse123!"
  *     responses:
  *       200:
  *         description: Mot de passe changé avec succès
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Mot de passe changé avec succès"
- *       401:
- *         description: Non autorisé ou ancien mot de passe incorrect
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+ *       400:
+ *         description: Ancien mot de passe incorrect
  */
-router.post('/changer-mot-passe', authentifierJWT, authController.changerMotPasse);
+router.post('/change-password', authentifierJWT, authController.changerMotPasse);
 
 /**
  * @swagger
- * /api/auth/demander-recuperation:
+ * /api/auth/reset-password:
  *   post:
- *     summary: Demander récupération mot de passe
- *     description: Demander une récupération de mot de passe par email
+ *     summary: 📧 Réinitialiser mot de passe via email (tous utilisateurs)
+ *     description: |
+ *       Permet à tous les utilisateurs de réinitialiser leur mot de passe en recevant
+ *       un lien de vérification par email. Fonctionne avec email ou nom d'utilisateur.
+ *       
+ *       **Fonctionnalités:**
+ *       - Recherche par email ou nom d'utilisateur
+ *       - Envoi automatique d'email avec lien sécurisé
+ *       - Lien expire après 1 heure
+ *       - Erreur claire si aucun email n'est associé au compte
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -101,15 +148,22 @@ router.post('/changer-mot-passe', authentifierJWT, authController.changerMotPass
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email]
  *             properties:
  *               email:
  *                 type: string
  *                 format: email
+ *                 description: Email associé au compte
  *                 example: "utilisateur@example.com"
+ *               nom_utilisateur:
+ *                 type: string
+ *                 description: Nom d'utilisateur (alternative à email)
+ *                 example: "jean.membre"
+ *             oneOf:
+ *               - required: [email]
+ *               - required: [nom_utilisateur]
  *     responses:
  *       200:
- *         description: Email de récupération envoyé
+ *         description: Email de réinitialisation envoyé avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -117,22 +171,33 @@ router.post('/changer-mot-passe', authentifierJWT, authController.changerMotPass
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "Email de récupération envoyé"
+ *                   example: "Un email de réinitialisation a été envoyé à votre adresse"
+ *                 email_masque:
+ *                   type: string
+ *                   example: "ut***@example.com"
+ *                 email_envoye:
+ *                   type: boolean
+ *                   example: true
+ *                 expiration:
+ *                   type: string
+ *                   example: "1 heure"
+ *       400:
+ *         description: Email manquant sur le compte
  *       404:
  *         description: Utilisateur non trouvé
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Compte désactivé
  */
-router.post('/demander-recuperation', loginLimiter, authController.demanderRecuperationMotPasse);
+router.post('/reset-password', loginLimiter, authController.reinitialiserMotPasse);
 
 /**
  * @swagger
- * /api/auth/reinitialiser-mot-passe:
+ * /api/auth/verify-reset:
  *   post:
- *     summary: Réinitialiser mot de passe
- *     description: Réinitialiser le mot de passe avec un token de récupération
+ *     summary: ✅ Confirmer réinitialisation avec token email
+ *     description: |
+ *       Finalise la réinitialisation de mot de passe en utilisant le token
+ *       reçu par email. Le nouveau mot de passe remplace l'ancien.
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -144,9 +209,12 @@ router.post('/demander-recuperation', loginLimiter, authController.demanderRecup
  *             properties:
  *               token:
  *                 type: string
- *                 example: "reset-token-12345"
+ *                 description: Token reçu par email
+ *                 example: "a1b2c3d4e5f6..."
  *               nouveau_mot_passe:
  *                 type: string
+ *                 minLength: 8
+ *                 description: Nouveau mot de passe fort
  *                 example: "NouveauMotPasse123!"
  *     responses:
  *       200:
@@ -159,14 +227,21 @@ router.post('/demander-recuperation', loginLimiter, authController.demanderRecup
  *                 message:
  *                   type: string
  *                   example: "Mot de passe réinitialisé avec succès"
+ *                 utilisateur:
+ *                   type: object
+ *                   properties:
+ *                     nom_complet:
+ *                       type: string
+ *                       example: "Jean Claude MBONGO"
+ *                     nom_utilisateur:
+ *                       type: string
+ *                       example: "jean.membre"
  *       400:
- *         description: Token invalide ou expiré
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+ *         description: Token invalide/expiré ou mot de passe invalide
+ *       403:
+ *         description: Compte désactivé
  */
-router.post('/reinitialiser-mot-passe', authController.reinitialiserMotPasse);
+router.post('/verify-reset', authController.confirmerReinitialisation);
 
 /**
  * @swagger

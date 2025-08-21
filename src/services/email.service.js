@@ -158,6 +158,24 @@ class EmailService {
   }
 
   /**
+   * Notification de réinitialisation de mot de passe
+   */
+  async envoyerLienReinitialisation(utilisateur, tokenReset, lienReset) {
+    if (!utilisateur.email) {
+      logger.info('Pas d\'email pour réinitialisation mot de passe', {
+        utilisateur_id: utilisateur.id,
+        nom_complet: `${utilisateur.prenoms} ${utilisateur.nom}`
+      });
+      return { success: false, error: 'Aucun email configuré' };
+    }
+
+    const sujet = '🔑 Réinitialisation de votre mot de passe SGM Association';
+    const contenuHTML = this.genererTemplateReinitialisation(utilisateur, tokenReset, lienReset);
+
+    return await this.envoyerEmail(utilisateur.email, sujet, contenuHTML);
+  }
+
+  /**
    * Template HTML pour approbation
    */
   genererTemplateApprobation(utilisateur, codeFormulaire, commentaire) {
@@ -333,6 +351,70 @@ class EmailService {
     <p style="margin: 0; color: #6c757d;">
       <strong>SGM - Association des Gabonais du Congo</strong><br>
       Secrétariat - Contact disponible pour toute question
+    </p>
+  </div>
+</body>
+</html>
+    `;
+  }
+
+  /**
+   * Template HTML pour réinitialisation de mot de passe
+   */
+  genererTemplateReinitialisation(utilisateur, tokenReset, lienReset) {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Réinitialisation de Mot de Passe</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background-color: #007bff; color: white; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
+    <h1 style="margin: 0;">🔑 Réinitialisation de mot de passe</h1>
+    <h2 style="margin: 10px 0 0 0;">Votre demande a été reçue</h2>
+  </div>
+
+  <div style="background-color: #f8f9fa; padding: 30px; border-radius: 10px;">
+    <p style="font-size: 18px; margin: 0 0 20px 0;">Bonjour <strong>${utilisateur.prenoms} ${utilisateur.nom}</strong>,</p>
+    
+    <p>Nous avons reçu une demande de réinitialisation de mot de passe pour votre compte <strong>SGM Association</strong>.</p>
+
+    <div style="background-color: #fff3cd; border: 2px solid #ffeaa7; padding: 20px; border-radius: 8px; margin: 25px 0;">
+      <h3 style="color: #856404; margin: 0 0 15px 0;">⏰ Action requise :</h3>
+      <p style="margin: 0; font-weight: bold;">Cliquez sur le bouton ci-dessous pour définir un nouveau mot de passe.</p>
+    </div>
+
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${lienReset}" style="display: inline-block; background-color: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+        🔑 Réinitialiser mon mot de passe
+      </a>
+    </div>
+
+    <div style="background-color: #d1ecf1; border: 2px solid #bee5eb; padding: 20px; border-radius: 8px; margin: 25px 0;">
+      <h4 style="color: #0c5460; margin: 0 0 10px 0;">🔒 Informations de sécurité :</h4>
+      <ul style="margin: 0; padding-left: 20px;">
+        <li><strong>Ce lien expire dans 1 heure</strong> pour votre sécurité</li>
+        <li>Si vous n'avez pas demandé cette réinitialisation, ignorez cet email</li>
+        <li>Ne partagez jamais ce lien avec d'autres personnes</li>
+      </ul>
+    </div>
+
+    <h3 style="color: #dc3545;">❓ Vous n'arrivez pas à cliquer sur le bouton ?</h3>
+    <p>Copiez et collez ce lien dans votre navigateur :</p>
+    <div style="background-color: #e9ecef; padding: 10px; border-radius: 5px; word-break: break-all; font-family: monospace; font-size: 14px;">
+      ${lienReset}
+    </div>
+
+    <p style="margin-top: 30px; font-size: 14px; color: #6c757d;">
+      <strong>Rappel :</strong> Pour votre sécurité, choisissez un mot de passe fort contenant au moins 8 caractères, des majuscules, minuscules, chiffres et caractères spéciaux.
+    </p>
+  </div>
+
+  <div style="text-align: center; margin-top: 30px; padding: 20px; background-color: #f1f1f1; border-radius: 10px;">
+    <p style="margin: 0; color: #6c757d;">
+      <strong>SGM - Association des Gabonais du Congo</strong><br>
+      En cas de problème, contactez-nous immédiatement.
     </p>
   </div>
 </body>

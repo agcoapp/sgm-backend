@@ -51,14 +51,36 @@ The project includes automated setup scripts:
 - `GET /api/health` - Health check
 - `GET /api/health/detailed` - Detailed health metrics
 
-### Coming Soon
-- `POST /api/register` - Member registration
-- `GET /api/members` - List members (admin)
-- `PATCH /api/members/:id` - Approve/reject member
-- `POST /api/signatures` - Upload president signature
-- `GET /api/photos/:id` - Member ID photos (admin)
-- `GET /api/verify/:id` - QR code verification
-- `GET /api/profile` - Member profile
+### 🔐 Authentication & Password Management
+- `POST /api/auth/connexion` - User login
+- `POST /api/auth/change-temporary-password` - First-time password change
+- `POST /api/auth/change-password` - Password change (all users)
+- `POST /api/auth/reset-password` - Email-based password reset
+- `POST /api/auth/verify-reset` - Complete reset with token
+- `GET /api/auth/profil` - User profile
+- `POST /api/auth/deconnexion` - User logout
+
+### 👥 Member Management
+- `POST /api/adhesion/soumettre` - Submit membership application
+- `GET /api/membre/formulaire-adhesion` - View membership form
+- `GET /api/membre/carte-membre` - View membership card
+- `GET /api/membre/annuaire` - Member directory (approved members only)
+- `GET /api/membre/telecharger-carte` - Download membership card PDF
+- `GET /api/membre/telecharger-formulaire` - Download form PDF
+
+### 🏛️ Secretary Management
+- `GET /api/secretaire/tableau-bord` - Secretary dashboard
+- `POST /api/secretaire/creer-identifiants` - Create member credentials
+- `POST /api/secretaire/approuver-formulaire` - Approve membership form
+- `POST /api/secretaire/rejeter-formulaire` - Reject membership form
+- `DELETE /api/secretaire/desactiver-utilisateur` - Deactivate member
+- `GET /api/secretaire/nouveaux-utilisateurs-credentials` - View temporary passwords
+
+### 📧 Email Notifications
+- Automatic emails for form approval/rejection
+- Account deactivation notifications
+- Password reset verification links
+- HTML templates with responsive design
 
 ## 🗄️ Database
 
@@ -140,6 +162,30 @@ src/
 ├── services/      # Business logic
 └── utils/         # Helper functions
 ```
+
+### Recent Improvements
+
+**🔄 Simplified Password Management (v1.1)**
+- Consolidated 7 endpoints into 4 streamlined endpoints
+- Universal access for all authenticated users
+- Email-based password reset with secure token verification
+- Enhanced security with 1-hour token expiration
+- Comprehensive audit logging for all password operations
+
+**📧 Email Notification System (v1.1)**
+- Nodemailer integration with HTML email templates
+- Automatic notifications for form approval/rejection
+- Account deactivation notifications
+- Password reset verification emails
+- Responsive email design with fallback text versions
+- Configurable SMTP settings for any email provider
+
+**🔧 System Improvements (v1.1)**
+- Fixed authentication middleware compatibility issues
+- Removed redundant code (300+ lines eliminated)
+- Enhanced error handling and logging
+- Updated API documentation with comprehensive examples
+- Improved separation of concerns across controllers
 
 ### Adding New Features
 1. Create route in `src/routes/`

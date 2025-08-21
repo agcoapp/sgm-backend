@@ -1,7 +1,7 @@
 {
   "name": "sgm-backend",
-  "version": "1.0.0",
-  "description": "Backend API for SGM Association des Gabonais du Congo",
+  "version": "1.1.0",
+  "description": "Backend API for SGM Association des Gabonais du Congo - Member management system with email notifications and universal password management",
   "main": "src/server.js",
   "scripts": {
     "start": "NODE_ENV=production npx prisma migrate deploy --schema=./prisma/schema.prisma && node prisma/seed-production.js && node src/server.js",
