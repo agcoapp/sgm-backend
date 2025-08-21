@@ -16,7 +16,7 @@ async function main() {
     create: {
       prenoms: 'Lamine',
       nom: 'DIOUGA-DIOP',
-      numero_piece_identite: 'PRES001',
+      numero_carte_consulaire: 'PRES001',
       email: 'president@sgm-gabon.org',
       telephone: '+242057424200',
       adresse: 'Siège SGM, Libreville, Gabon',
@@ -26,7 +26,6 @@ async function main() {
       ville_residence: 'Brazzaville',
       date_entree_congo: new Date(2000, 0, 1), // 01-01-2000 en format français
       employeur_ecole: 'Les Ateliers Reunis',
-      type_piece_identite: 'PASSEPORT',
       date_emission_piece: new Date(2020, 0, 1), // 01-01-2020 en format français
       statut: 'APPROUVE',
       role: 'PRESIDENT',
@@ -36,6 +35,7 @@ async function main() {
       nom_utilisateur: 'president.sgm',
       mot_passe_hash: motPasseHash,
       doit_changer_mot_passe: true, // Force password change on first login
+      a_change_mot_passe_temporaire: false, // Will be set to true after first password change
       a_paye: true,
       a_soumis_formulaire: true
     },
@@ -48,7 +48,7 @@ async function main() {
     create: {
       prenoms: 'Mesmin',
       nom: 'LENGANDY',
-      numero_piece_identite: 'SEC001',
+      numero_carte_consulaire: 'SEC001',
       email: 'secretaire@sgm-gabon.org',
       telephone: '+242066000002',
       adresse: 'Siège SGM, Brazzaville, Congo',
@@ -58,7 +58,6 @@ async function main() {
       ville_residence: 'Brazzaville',
       date_entree_congo: new Date(2010, 0, 1), // 01-01-2010 en format français
       employeur_ecole: 'SGM Association',
-      type_piece_identite: 'CARTE_CONSULAIRE',
       date_emission_piece: new Date(2020, 0, 1), // 01-01-2020 en format français
       statut: 'APPROUVE',
       role: 'SECRETAIRE_GENERALE',
@@ -68,6 +67,7 @@ async function main() {
       nom_utilisateur: 'secretaire.sgm',
       mot_passe_hash: motPasseHash,
       doit_changer_mot_passe: true, // Force password change on first login
+      a_change_mot_passe_temporaire: false, // Will be set to true after first password change
       a_paye: true,
       a_soumis_formulaire: true
     },
