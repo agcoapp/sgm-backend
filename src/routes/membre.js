@@ -1,6 +1,6 @@
 const express = require('express');
 const membreController = require('../controllers/membre.controller');
-const { authentifierJWT } = require('../middleware/auth-local');
+const { authentifierJWT, verifierRole } = require('../middleware/auth-local');
 const { generalLimiter } = require('../middleware/security');
 
 const router = express.Router();
@@ -295,5 +295,49 @@ router.get('/annuaire', authentifierJWT, generalLimiter, membreController.obteni
  *               $ref: '#/components/schemas/Error'
  */
 router.get('/telecharger-carte', authentifierJWT, generalLimiter, membreController.telechargerCarte);
+
+/**
+ * @swagger
+ * /api/membre/president-signature:
+ *   get:
+ *     summary: Get president's signature
+ *     description: Get the active signature of the president for display in forms (Secretary and President access only)
+ *     tags: [Member]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: President's signature retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 signature_url:
+ *                   type: string
+ *                   example: "https://res.cloudinary.com/your-cloud/image/upload/v123456789/sgm/signatures/president_signature.png"
+ *                   description: "Cloudinary URL of the president's signature image"
+ *                 nom_president:
+ *                   type: string
+ *                   example: "Marie Claire OBAME"
+ *                   description: "Full name of the president who owns this signature"
+ *       404:
+ *         description: President's signature not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 erreur:
+ *                   type: string
+ *                   example: "Signature du président non trouvée"
+ *       403:
+ *         description: Access denied - Secretary or President role required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get('/president-signature', authentifierJWT, verifierRole('SECRETAIRE_GENERALE', 'PRESIDENT'), generalLimiter, membreController.getPresidentSignature);
 
 module.exports = router;

@@ -1,9 +1,9 @@
 {
   "info": {
     "name": "SGM Backend - Complete API Collection",
-    "description": "Complete API Collection for SGM Backend - Association des Gabonais du Congo\n\n## 🔄 Workflow:\n1. **Secretary creates member credentials** after cash payment\n2. **Member logs in** with generated username/password\n3. **Member changes password** on first login (mandatory)\n4. **Member submits adhesion form** with personal details + photos\n5. **Secretary reviews and approves/rejects** forms\n6. **Approved forms get President signature** automatically\n\n## 🔐 Test Credentials:\n- **President:** `president.sgm` / `MotPasse123!`\n- **Secretary:** `secrétaire.sgm` / `MotPasse123!`\n\n## 🗓️ Date Format:\nAll dates use French format: `DD-MM-YYYY`\n\n## 📍 Base URLs:\n- **Local:** `http://localhost:3000`\n- **Production:** `https://sgm-backend-production.up.railway.app`",
+    "description": "Complete API Collection for SGM Backend - Association des Gabonais du Congo\n\n## 🔄 Workflow:\n1. **Secretary creates member credentials** after cash payment\n2. **Member logs in** with generated username/password\n3. **Member changes password** on first login (mandatory)\n4. **Member submits adhesion form** with personal details + photos\n5. **Secretary reviews and approves/rejects** forms\n6. **Approved forms get President signature** automatically\n7. **Secretary/President can fetch signature** for frontend display\n\n## 🔐 Test Credentials:\n- **President:** `jean.president` / `MotPasse123!`\n- **Secretary:** `marie.secretaire` / `MotPasse123!`\n\n## 🗓️ Date Format:\nAll dates use French format: `DD-MM-YYYY`\n\n## 📍 Base URLs:\n- **Local:** `http://localhost:3000`\n- **Production:** `https://sgm-backend-production.up.railway.app`",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "2.0.0"
+    "version": "2.1.0"
   },
   "variable": [
     {
@@ -703,6 +703,42 @@
               "path": ["api", "membre", "telecharger-carte"]
             }
           }
+        },
+        {
+          "name": "Get President Signature",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/president-signature",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "president-signature"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains signature data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('signature_url');",
+                  "    pm.expect(jsonData).to.have.property('nom_president');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         }
       ]
     },

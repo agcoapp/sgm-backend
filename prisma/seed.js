@@ -108,6 +108,16 @@ async function main() {
     }),
   ]);
 
+  // Create president's signature record
+  await prisma.signature.create({
+    data: {
+      id_president: president.id,
+      url_signature: 'https://res.cloudinary.com/sgm-demo/image/upload/v123456789/sgm/signatures/president_signature_demo.png',
+      cloudinary_id: 'sgm/signatures/president_signature_demo',
+      est_active: true,
+    },
+  });
+
   // Create initial audit log
   await prisma.journalAudit.create({
     data: {

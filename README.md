@@ -67,6 +67,7 @@ The project includes automated setup scripts:
 - `GET /api/membre/annuaire` - Member directory (approved members only)
 - `GET /api/membre/telecharger-carte` - Download membership card PDF
 - `GET /api/membre/telecharger-formulaire` - Download form PDF
+- `GET /api/membre/president-signature` - Get president's signature (Secretary/President only)
 
 ### 🏛️ Secretary Management
 - `GET /api/secretaire/tableau-bord` - Secretary dashboard

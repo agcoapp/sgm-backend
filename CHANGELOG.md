@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Enhanced security** with 1-hour token expiration
 - **Comprehensive audit logging** for all password operations
 
+#### 🖊️ President Signature Management
+- **New endpoint**: `GET /api/membre/president-signature` for fetching president's signature
+- **Role-based access control** - restricted to Secretary and President roles only
+- **Cloudinary integration** - retrieves signature images from cloud storage
+- **Frontend-ready response** with signature URL and president name
+- **Database-backed** signature management with active signature tracking
+
 ### 🛠️ System Improvements
 
 #### 🔧 Technical Enhancements

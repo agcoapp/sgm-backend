@@ -1,5 +1,6 @@
 const prisma = require('../config/database');
 const logger = require('../config/logger');
+const membreService = require('../services/membre.service');
 
 const formatterDateFrancaise = (date) => {
   if (!date) return null;
@@ -367,6 +368,28 @@ class MembreController {
         }
       });
 
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get the president's signature
+   */
+  async getPresidentSignature(req, res, next) {
+    try {
+      const signature = await membreService.getPresidentSignature();
+
+      if (!signature) {
+        const error = new Error("Signature du président non trouvée");
+        error.status = 404;
+        throw error;
+      }
+
+      res.json({
+        signature_url: signature.url_signature,
+        nom_president: `${signature.utilisateur.prenoms} ${signature.utilisateur.nom}`,
+      });
     } catch (error) {
       next(error);
     }
