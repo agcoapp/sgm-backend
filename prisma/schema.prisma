@@ -72,6 +72,7 @@ model Utilisateur {
   journaux_audit         JournalAudit[]
   formulaires_adhesion   FormulaireAdhesion[]
   tokens_recuperation    TokenRecuperation[]
+  textes_officiels       TexteOfficiel[]
 }
 
 model Signature {
@@ -122,6 +123,28 @@ model TokenRecuperation {
   utilisateur    Utilisateur @relation(fields: [id_utilisateur], references: [id])
 }
 
+model TexteOfficiel {
+  id                 Int       @id @default(autoincrement())
+  titre              String    // Titre du document
+  description        String?   // Description optionnelle
+  type_document      TypeDocumentOfficiel // Type de document
+  url_cloudinary     String    // URL du fichier PDF sur Cloudinary
+  cloudinary_id      String    // ID Cloudinary pour gestion/suppression
+  taille_fichier     Int?      // Taille du fichier en bytes
+  nom_fichier_original String  // Nom original du fichier
+  
+  // Informations d'upload
+  telecharge_par     Int       // ID du secrétaire qui a uploadé
+  telecharge_le      DateTime  @default(now())
+  modifie_le         DateTime  @updatedAt
+  
+  // Statut et visibilité
+  est_actif          Boolean   @default(true) // True si visible aux membres
+  
+  // Relations
+  utilisateur        Utilisateur @relation(fields: [telecharge_par], references: [id])
+}
+
 enum Statut {
   EN_ATTENTE
   APPROUVE
@@ -132,5 +155,12 @@ enum Role {
   MEMBRE
   SECRETAIRE_GENERALE
   PRESIDENT
+}
+
+enum TypeDocumentOfficiel {
+  PV_REUNION
+  COMPTE_RENDU
+  DECISION
+  REGLEMENT_INTERIEUR
 }
 

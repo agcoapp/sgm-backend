@@ -194,6 +194,106 @@ const options = {
             code: { type: 'string', example: 'CODE_ERREUR' },
             details: { type: 'string', example: 'Détails supplémentaires' }
           }
+        },
+        CreerTexteOfficielRequest: {
+          type: 'object',
+          required: ['titre', 'type_document', 'url_cloudinary', 'cloudinary_id', 'nom_fichier_original'],
+          properties: {
+            titre: { type: 'string', minLength: 5, maxLength: 200, example: 'PV Assemblée Générale 2025' },
+            description: { type: 'string', maxLength: 1000, example: 'Procès-verbal de l\'assemblée générale ordinaire du 15 janvier 2025' },
+            type_document: { type: 'string', enum: ['PV_REUNION', 'COMPTE_RENDU', 'DECISION', 'REGLEMENT_INTERIEUR'], example: 'PV_REUNION' },
+            url_cloudinary: { type: 'string', format: 'url', example: 'https://res.cloudinary.com/sgm/raw/upload/v123456789/documents/pv-ag-2025.pdf' },
+            cloudinary_id: { type: 'string', example: 'documents/pv-ag-2025' },
+            taille_fichier: { type: 'integer', example: 2048576, description: 'Taille en bytes' },
+            nom_fichier_original: { type: 'string', example: 'PV-AG-2025.pdf' }
+          }
+        },
+        MettreAJourTexteOfficielRequest: {
+          type: 'object',
+          properties: {
+            titre: { type: 'string', minLength: 5, maxLength: 200, example: 'PV Assemblée Générale 2025 - Modifié' },
+            description: { type: 'string', maxLength: 1000, example: 'Description mise à jour' },
+            est_actif: { type: 'boolean', example: true }
+          }
+        },
+        TexteOfficielResponse: {
+          type: 'object',
+          properties: {
+            message: { type: 'string', example: 'Texte officiel récupéré' },
+            texte_officiel: {
+              type: 'object',
+              properties: {
+                id: { type: 'integer', example: 1 },
+                titre: { type: 'string', example: 'PV Assemblée Générale 2025' },
+                description: { type: 'string', example: 'Procès-verbal de l\'assemblée générale ordinaire' },
+                type_document: { type: 'string', example: 'PV_REUNION' },
+                type_document_label: { type: 'string', example: 'PV de Réunion' },
+                url_cloudinary: { type: 'string', example: 'https://res.cloudinary.com/sgm/raw/upload/v123456789/documents/pv-ag-2025.pdf' },
+                taille_fichier: { type: 'integer', example: 2048576 },
+                nom_fichier_original: { type: 'string', example: 'PV-AG-2025.pdf' },
+                telecharge_le: { type: 'string', format: 'date-time', example: '2025-01-15T10:30:00Z' },
+                modifie_le: { type: 'string', format: 'date-time', example: '2025-01-15T10:30:00Z' },
+                telecharge_par: {
+                  type: 'object',
+                  properties: {
+                    prenoms: { type: 'string', example: 'Marie claire' },
+                    nom: { type: 'string', example: 'SECRETAIRE' },
+                    role: { type: 'string', example: 'SECRETAIRE_GENERALE' }
+                  }
+                },
+                est_actif: { type: 'boolean', example: true }
+              }
+            }
+          }
+        },
+        ListeTextesOfficielsResponse: {
+          type: 'object',
+          properties: {
+            message: { type: 'string', example: 'Liste des textes officiels récupérée' },
+            documents: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'integer', example: 1 },
+                  titre: { type: 'string', example: 'PV Assemblée Générale 2025' },
+                  description: { type: 'string', example: 'Procès-verbal...' },
+                  type_document: { type: 'string', example: 'PV_REUNION' },
+                  type_document_label: { type: 'string', example: 'PV de Réunion' },
+                  url_cloudinary: { type: 'string', example: 'https://res.cloudinary.com/...' },
+                  taille_fichier: { type: 'integer', example: 2048576 },
+                  nom_fichier_original: { type: 'string', example: 'PV-AG-2025.pdf' },
+                  telecharge_le: { type: 'string', format: 'date-time' },
+                  modifie_le: { type: 'string', format: 'date-time' }
+                }
+              }
+            },
+            pagination: { $ref: '#/components/schemas/Pagination' }
+          }
+        },
+        StatistiquesTextesOfficielsResponse: {
+          type: 'object',
+          properties: {
+            message: { type: 'string', example: 'Statistiques récupérées' },
+            statistiques: {
+              type: 'object',
+              properties: {
+                total_documents_actifs: { type: 'integer', example: 25 },
+                total_documents_inactifs: { type: 'integer', example: 3 },
+                par_type: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      type_document: { type: 'string', example: 'PV_REUNION' },
+                      type_document_label: { type: 'string', example: 'PV de Réunion' },
+                      count: { type: 'integer', example: 8 }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -226,6 +326,10 @@ const options = {
       {
         name: 'Adhesion',
         description: 'Soumission de formulaires par les membres'
+      },
+      {
+        name: 'Textes Officiels',
+        description: 'Gestion des documents officiels (PV, Comptes-rendus, Décisions, Règlements)'
       }
     ]
   },

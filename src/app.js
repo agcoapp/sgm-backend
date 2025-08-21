@@ -12,6 +12,7 @@ const secretaireRoutes = require('./routes/secretaire'); // Routes tableau de bo
 const membreRoutes = require('./routes/membre'); // Routes membre
 const registrationRoutes = require('./routes/registration');
 const adhesionRoutes = require('./routes/adhesion');
+const texteOfficielRoutes = require('./routes/texte-officiel'); // Routes textes officiels
 
 // Swagger documentation
 const { specs, swaggerUi } = require('./config/swagger');
@@ -65,6 +66,7 @@ app.use('/api/secretaire', secretaireRoutes); // Routes tableau de bord secréta
 app.use('/api/membre', membreRoutes); // Routes membre
 app.use('/api/register', registrationRoutes);
 app.use('/api/adhesion', adhesionRoutes);
+app.use('/api/textes-officiels', texteOfficielRoutes); // Routes textes officiels
 
 // Swagger documentation routes
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
