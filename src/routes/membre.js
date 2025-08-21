@@ -9,9 +9,9 @@ const router = express.Router();
  * @swagger
  * /api/membre/changer-mot-passe-temporaire:
  *   post:
- *     summary: Changer mot de passe temporaire
- *     description: Changer le mot de passe temporaire lors de la première connexion
- *     tags: [Member]
+ *     summary: Changer mot de passe temporaire (une seule fois)
+ *     description: Changer le mot de passe temporaire lors de la première connexion. Ne peut être utilisé qu'une seule fois par utilisateur. Permet d'ajouter un email optionnel.
+ *     tags: [Members]
  *     security:
  *       - BearerAuth: []
  *     requestBody:
@@ -19,32 +19,34 @@ const router = express.Router();
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required: [nouveau_mot_passe]
- *             properties:
- *               nouveau_mot_passe:
- *                 type: string
- *                 minLength: 8
- *                 example: "NouveauMotPasse123!"
+ *             $ref: '#/components/schemas/ChangeTemporaryPasswordRequest'
  *     responses:
  *       200:
  *         description: Mot de passe temporaire changé avec succès
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Mot de passe changé avec succès"
+ *               $ref: '#/components/schemas/ChangeTemporaryPasswordResponse'
  *       400:
- *         description: Mot de passe invalide ou utilisateur n'a pas de mot de passe temporaire
+ *         description: Données invalides
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
- *       401:
- *         description: Non autorisé
+ *       403:
+ *         description: Utilisateur non autorisé ou a déjà changé son mot de passe temporaire
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Utilisateur non trouvé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       409:
+ *         description: Email déjà utilisé par un autre utilisateur
  *         content:
  *           application/json:
  *             schema:

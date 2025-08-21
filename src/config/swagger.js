@@ -74,14 +74,19 @@ const options = {
           type: 'object',
           properties: {
             id: { type: 'integer', example: 1 },
-            prenoms: { type: 'string', example: 'Jean Claude' },
-            nom: { type: 'string', example: 'Mbongo' },
+            prenoms: { type: 'string', example: 'Jean claude' },
+            nom: { type: 'string', example: 'MBONGO' },
             email: { type: 'string', format: 'email', example: 'jean.mbongo@example.com' },
             telephone: { type: 'string', example: '+241066123456' },
             nom_utilisateur: { type: 'string', example: 'jeanclau.mbongo' },
             role: { type: 'string', enum: ['MEMBRE', 'SECRETAIRE_GENERALE', 'PRESIDENT'] },
             statut: { type: 'string', enum: ['EN_ATTENTE', 'APPROUVE', 'REJETE'] },
-            a_soumis_formulaire: { type: 'boolean', example: true }
+            numero_carte_consulaire: { type: 'string', example: 'CC123456', description: 'Numéro de carte consulaire (optionnel)' },
+            selfie_photo_url: { type: 'string', example: 'https://res.cloudinary.com/example/image/upload/v123456789/selfie.jpg', description: 'URL Cloudinary de la photo selfie' },
+            signature_url: { type: 'string', example: 'https://res.cloudinary.com/example/image/upload/v123456789/signature.jpg', description: 'URL Cloudinary de la signature' },
+            commentaire: { type: 'string', example: 'Commentaire du membre', maxLength: 100 },
+            a_soumis_formulaire: { type: 'boolean', example: true },
+            a_change_mot_passe_temporaire: { type: 'boolean', example: false, description: 'True si a déjà changé le mot de passe temporaire' }
           }
         },
         LoginRequest: {
@@ -119,25 +124,42 @@ const options = {
         },
         AdhesionRequest: {
           type: 'object',
-          required: ['prenoms', 'nom', 'email', 'telephone', 'date_naissance'],
+          required: ['prenoms', 'nom', 'telephone', 'date_naissance'],
           properties: {
-            prenoms: { type: 'string', example: 'Jean Claude' },
-            nom: { type: 'string', example: 'Mbongo' },
-            email: { type: 'string', format: 'email', example: 'jean.mbongo@example.com' },
+            prenoms: { type: 'string', example: 'Jean claude', description: 'Prénoms (première lettre en majuscule)' },
+            nom: { type: 'string', example: 'MBONGO', description: 'Nom (tout en majuscules)' },
             telephone: { type: 'string', example: '+241066123456' },
             adresse: { type: 'string', example: 'Libreville, Gabon' },
             date_naissance: { type: 'string', example: '15-03-1990', description: 'Format DD-MM-YYYY' },
-            lieu_naissance: { type: 'string', example: 'Port-Gentil' },
+            lieu_naissance: { type: 'string', example: 'Port-Gentil', description: 'Lieu de naissance (chaque mot capitalisé)' },
             profession: { type: 'string', example: 'Ingénieur' },
-            ville_residence: { type: 'string', example: 'Libreville' },
+            ville_residence: { type: 'string', example: 'Libreville', description: 'Ville de résidence (chaque mot capitalisé)' },
             date_entree_congo: { type: 'string', example: '10-01-2020', description: 'Format DD-MM-YYYY' },
             employeur_ecole: { type: 'string', example: 'Total Gabon' },
-            type_piece_identite: { type: 'string', enum: ['PASSEPORT', 'CNI', 'CARTE_SEJOUR'], example: 'PASSEPORT' },
-            numero_piece_identite: { type: 'string', example: 'G1234567' },
-            date_emission_piece: { type: 'string', example: '15-06-2023', description: 'Format DD-MM-YYYY' },
-            id_front_photo: { type: 'string', example: 'data:image/jpeg;base64,/9j/4AAQ...', description: 'Photo recto ID en base64' },
-            id_back_photo: { type: 'string', example: 'data:image/jpeg;base64,/9j/4AAQ...', description: 'Photo verso ID en base64' },
-            selfie_photo: { type: 'string', example: 'data:image/jpeg;base64,/9j/4AAQ...', description: 'Photo selfie en base64' }
+            numero_carte_consulaire: { type: 'string', example: 'CC123456', description: 'Numéro de carte consulaire (optionnel, en majuscules)' },
+            date_emission_piece: { type: 'string', example: '15-06-2023', description: 'Format DD-MM-YYYY (optionnel)' },
+            prenom_conjoint: { type: 'string', example: 'Marie' },
+            nom_conjoint: { type: 'string', example: 'MBONGO' },
+            nombre_enfants: { type: 'integer', example: 2 },
+            selfie_photo_url: { type: 'string', example: 'https://res.cloudinary.com/example/image/upload/v123456789/selfie.jpg', description: 'URL Cloudinary de la photo selfie' },
+            signature_url: { type: 'string', example: 'https://res.cloudinary.com/example/image/upload/v123456789/signature.jpg', description: 'URL Cloudinary de la signature (optionnelle)' },
+            commentaire: { type: 'string', example: 'Commentaire optionnel', maxLength: 100, description: 'Commentaire optionnel (100 caractères max)' }
+          }
+        },
+        ChangeTemporaryPasswordRequest: {
+          type: 'object',
+          required: ['nouveau_mot_passe', 'confirmer_mot_passe'],
+          properties: {
+            nouveau_mot_passe: { type: 'string', example: 'NouveauMotPasse123!', description: 'Nouveau mot de passe (8 caractères min, majuscule, minuscule, chiffre)' },
+            confirmer_mot_passe: { type: 'string', example: 'NouveauMotPasse123!', description: 'Confirmation du nouveau mot de passe' },
+            email: { type: 'string', format: 'email', example: 'jean.mbongo@example.com', description: 'Email optionnel à ajouter au profil' }
+          }
+        },
+        ChangeTemporaryPasswordResponse: {
+          type: 'object',
+          properties: {
+            message: { type: 'string', example: 'Mot de passe changé avec succès' },
+            email_ajoute: { type: 'boolean', example: true, description: 'True si un email a été ajouté au profil' }
           }
         },
         ApproveFormRequest: {

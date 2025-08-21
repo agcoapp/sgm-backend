@@ -5,81 +5,21 @@ const { uploadLimiter } = require('../middleware/security');
 
 const router = express.Router();
 
-// Configuration multer pour l'upload des fichiers
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB max par fichier
-    files: 1 // Maximum 1 fichier (photo profil seulement)
-  },
-  fileFilter: (req, file, cb) => {
-    // Vérifier le type de fichier
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Seuls les fichiers image sont autorisés'), false);
-    }
-  }
-});
+// Note: Plus besoin de multer car les photos sont maintenant des URLs Cloudinary
 
 /**
  * @swagger
  * /api/adhesion/soumettre:
  *   post:
  *     summary: Soumettre demande d'adhésion
- *     description: Soumettre une demande d'adhésion avec photo de profil (endpoint public)
+ *     description: Soumettre une demande d'adhésion avec données personnelles et URLs Cloudinary (endpoint public)
  *     tags: [Adhesion]
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - nom
- *               - prenoms
- *               - telephone
- *               - email
- *               - lieu_naissance
- *               - date_naissance
- *               - adresse_gabon
- *               - adresse_congo
- *               - profession
- *               - photo_profil
- *             properties:
- *               nom:
- *                 type: string
- *                 example: "Mbongo"
- *               prenoms:
- *                 type: string
- *                 example: "Jean Claude"
- *               telephone:
- *                 type: string
- *                 example: "+241 01 02 03 04"
- *               email:
- *                 type: string
- *                 format: email
- *                 example: "jean.mbongo@example.com"
- *               lieu_naissance:
- *                 type: string
- *                 example: "Libreville, Gabon"
- *               date_naissance:
- *                 type: string
- *                 description: Format DD-MM-YYYY
- *                 example: "15-03-1985"
- *               adresse_gabon:
- *                 type: string
- *                 example: "123 Boulevard Triomphal, Libreville"
- *               adresse_congo:
- *                 type: string
- *                 example: "456 Avenue de la République, Brazzaville"
- *               profession:
- *                 type: string
- *                 example: "Ingénieur"
- *               photo_profil:
- *                 type: string
- *                 format: binary
- *                 description: Photo de profil (JPEG/PNG, max 5MB)
+ *             $ref: '#/components/schemas/AdhesionRequest'
  *     responses:
  *       201:
  *         description: Demande d'adhésion soumise avec succès
@@ -109,11 +49,7 @@ const upload = multer({
  */
 router.post(
   '/soumettre',
-  uploadLimiter, // Rate limiting pour les uploads
-  upload.fields([
-    // { name: 'photo_piece', maxCount: 1 }, // Temporairement désactivé
-    { name: 'photo_profil', maxCount: 1 }
-  ]),
+  uploadLimiter, // Rate limiting pour les requêtes
   adhesionController.soumettreDemande
 );
 
