@@ -40,6 +40,7 @@ npm run lint          # Run ESLint
 - **PostgreSQL** database with **Prisma ORM**
 - **Clerk** for authentication and user management
 - **Cloudinary** for document/photo storage and processing
+- **Nodemailer** for email notifications with HTML templates
 - **Zod** schemas for input validation
 - **Winston** for structured logging
 
@@ -56,12 +57,24 @@ npm run lint          # Run ESLint
 2. Complete registration with required documents: ID front/back, selfie photo
 3. Secretary reviews and approves/rejects with form code assignment
 4. Approved members get QR code and digital membership card
+5. **Email notifications** automatically sent for approval, rejection, or account deactivation (only to members with email addresses)
 
 **File Upload Requirements:**
 - 3 required photos: `id_front_photo`, `id_back_photo`, `selfie_photo`
 - JPEG/PNG only, max 5MB each
 - Automatic Cloudinary upload with optimization (800x600, quality optimization)
 - Stored in `sgm/id_documents/` folder structure
+
+**Email Notification System:**
+- **Nodemailer integration** with configurable SMTP settings
+- **HTML email templates** with responsive design for all notifications
+- **Conditional sending** - only sends to users with email addresses
+- **Three notification types:**
+  - Form approval (with form code and congratulations)
+  - Form rejection (with specific reasons and next steps)
+  - Account deactivation (with suspension details)
+- **Graceful failure handling** - system continues working if email service is unavailable
+- **Comprehensive logging** of all email operations
 
 ### Database Schema Key Points
 - **User model** contains both Clerk sync data and registration details
@@ -84,6 +97,15 @@ npm run lint          # Run ESLint
 
 ### Environment Requirements
 Essential variables: `DATABASE_URL`, `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+
+**Email Service Variables (for notifications):**
+- `EMAIL_HOST`: SMTP server (e.g., "smtp.gmail.com")
+- `EMAIL_PORT`: SMTP port (587 for TLS, 465 for SSL)
+- `EMAIL_SECURE`: "true" for SSL (port 465), "false" for TLS (port 587)
+- `EMAIL_USER`: Email account username
+- `EMAIL_PASS`: Email account password/app password
+- `EMAIL_FROM`: From email (optional, defaults to EMAIL_USER)
+- `EMAIL_FROM_NAME`: From display name (optional, defaults to "SGM Association")
 
 ### Development Patterns
 - **MVC structure:** Routes → Controllers → Services pattern

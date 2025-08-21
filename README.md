@@ -107,9 +107,16 @@ CLOUDINARY_CLOUD_NAME="..."
 CLOUDINARY_API_KEY="..."
 CLOUDINARY_API_SECRET="..."
 
-# Email & SMS
-EMAIL_USER="..."
-EMAIL_PASS="..."
+# Email Service Configuration (For Notifications)
+EMAIL_HOST="smtp.gmail.com"           # SMTP server hostname
+EMAIL_PORT="587"                      # SMTP port (587 for TLS, 465 for SSL)
+EMAIL_SECURE="false"                  # true for 465, false for other ports
+EMAIL_USER="your-email@gmail.com"     # Email account username
+EMAIL_PASS="your-app-password"        # Email account password/app password
+EMAIL_FROM="your-email@gmail.com"     # From email address (optional, defaults to EMAIL_USER)
+EMAIL_FROM_NAME="SGM Association"     # From name (optional)
+
+# SMS Service (Optional)
 TWILIO_ACCOUNT_SID="..."
 TWILIO_AUTH_TOKEN="..."
 ```

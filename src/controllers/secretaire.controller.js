@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const logger = require('../config/logger');
 const serviceAuth = require('../services/auth.service');
+const emailService = require('../services/email.service');
 const { creerIdentifiantsSchema, creerNouveauMembreSchema } = require('../schemas/auth.schema');
 
 class ControleurSecretaire {
@@ -617,6 +618,7 @@ class ControleurSecretaire {
           id: true, 
           prenoms: true, 
           nom: true, 
+          email: true, // Pour notifications email
           a_soumis_formulaire: true, 
           statut: true,
           code_formulaire: true
@@ -684,6 +686,26 @@ class ControleurSecretaire {
 
       logger.info(`Formulaire approuvé avec signature pour utilisateur ${id_utilisateur} par secrétaire ${idSecretaire}`);
 
+      // Envoyer notification email si l'utilisateur a un email
+      let notificationEmail = { success: false, error: 'Aucun email' };
+      if (utilisateur.email) {
+        try {
+          notificationEmail = await emailService.notifierFormulaireApprouve(
+            utilisateur, 
+            codeFormulaire, 
+            commentaire
+          );
+          
+          if (notificationEmail.success) {
+            logger.info(`Email d'approbation envoyé à ${utilisateur.email} pour utilisateur ${id_utilisateur}`);
+          } else {
+            logger.warn(`Échec envoi email d'approbation pour utilisateur ${id_utilisateur}:`, notificationEmail.error);
+          }
+        } catch (error) {
+          logger.error(`Erreur lors de l'envoi d'email d'approbation pour utilisateur ${id_utilisateur}:`, error);
+        }
+      }
+
       res.json({
         message: 'Formulaire approuvé avec succès',
         utilisateur: {
@@ -697,7 +719,8 @@ class ControleurSecretaire {
           '✅ Formulaire approuvé',
           '🏷️ Code de formulaire généré',
           '✍️ Signature du président ajoutée',
-          '🎫 Carte d\'adhésion émise'
+          '🎫 Carte d\'adhésion émise',
+          ...(notificationEmail.success ? ['📧 Email de confirmation envoyé'] : [])
         ],
         signature_president: signaturePresident ? {
           appliquee: true,
@@ -705,6 +728,11 @@ class ControleurSecretaire {
         } : {
           appliquee: false,
           message: 'Aucune signature de président active trouvée'
+        },
+        notification_email: {
+          envoye: notificationEmail.success,
+          destinataire: utilisateur.email || null,
+          erreur: notificationEmail.success ? null : notificationEmail.error
         }
       });
 
@@ -738,6 +766,7 @@ class ControleurSecretaire {
           id: true, 
           prenoms: true, 
           nom: true, 
+          email: true, // Pour notifications email
           a_soumis_formulaire: true, 
           statut: true 
         }
@@ -776,6 +805,22 @@ class ControleurSecretaire {
 
       logger.info(`Formulaire rejeté pour utilisateur ${id_utilisateur} par secrétaire ${idSecretaire}`);
 
+      // Envoyer notification email si l'utilisateur a un email
+      let notificationEmail = { success: false, error: 'Aucun email' };
+      if (utilisateur.email) {
+        try {
+          notificationEmail = await emailService.notifierFormulaireRejete(utilisateur, raison);
+          
+          if (notificationEmail.success) {
+            logger.info(`Email de rejet envoyé à ${utilisateur.email} pour utilisateur ${id_utilisateur}`);
+          } else {
+            logger.warn(`Échec envoi email de rejet pour utilisateur ${id_utilisateur}:`, notificationEmail.error);
+          }
+        } catch (error) {
+          logger.error(`Erreur lors de l'envoi d'email de rejet pour utilisateur ${id_utilisateur}:`, error);
+        }
+      }
+
       res.json({
         message: 'Formulaire rejeté',
         utilisateur: {
@@ -783,7 +828,16 @@ class ControleurSecretaire {
           nom_complet: `${utilisateurMisAJour.prenoms} ${utilisateurMisAJour.nom}`,
           statut: utilisateurMisAJour.statut
         },
-        raison: raison
+        raison: raison,
+        actions_effectuees: [
+          '❌ Formulaire rejeté',
+          ...(notificationEmail.success ? ['📧 Email d\'information envoyé au membre'] : [])
+        ],
+        notification_email: {
+          envoye: notificationEmail.success,
+          destinataire: utilisateur.email || null,
+          erreur: notificationEmail.success ? null : notificationEmail.error
+        }
       });
 
     } catch (error) {
@@ -1259,13 +1313,38 @@ class ControleurSecretaire {
         raison
       });
 
-            res.json({
+      // Envoyer notification email si l'utilisateur a un email
+      let notificationEmail = { success: false, error: 'Aucun email' };
+      if (utilisateur.email) {
+        try {
+          notificationEmail = await emailService.notifierDesactivationCompte(utilisateur, raison);
+          
+          if (notificationEmail.success) {
+            logger.info(`Email de désactivation envoyé à ${utilisateur.email} pour utilisateur ${id_utilisateur}`);
+          } else {
+            logger.warn(`Échec envoi email de désactivation pour utilisateur ${id_utilisateur}:`, notificationEmail.error);
+          }
+        } catch (error) {
+          logger.error(`Erreur lors de l'envoi d'email de désactivation pour utilisateur ${id_utilisateur}:`, error);
+        }
+      }
+
+      res.json({
         message: 'Utilisateur désactivé avec succès',
         utilisateur: {
           id: utilisateurDesactive.id,
           nom_complet: `${utilisateurDesactive.prenoms} ${utilisateurDesactive.nom}`,
           desactive_le: new Date(utilisateurDesactive.desactive_le),
           raison_desactivation: utilisateurDesactive.raison_desactivation
+        },
+        actions_effectuees: [
+          '🔒 Compte utilisateur désactivé',
+          ...(notificationEmail.success ? ['📧 Email de notification envoyé'] : [])
+        ],
+        notification_email: {
+          envoye: notificationEmail.success,
+          destinataire: utilisateur.email || null,
+          erreur: notificationEmail.success ? null : notificationEmail.error
         }
       });
 

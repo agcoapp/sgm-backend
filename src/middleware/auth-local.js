@@ -52,7 +52,9 @@ const authentifierJWT = async (req, res, next) => {
     }
 
     // Ajouter les informations utilisateur à la requête
+    // Compatibility: set both req.user and req.utilisateur for different controllers
     req.user = utilisateur;
+    req.utilisateur = utilisateur;
     next();
 
   } catch (error) {
