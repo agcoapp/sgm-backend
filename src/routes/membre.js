@@ -317,6 +317,134 @@ router.get('/telecharger-formulaire', authentifierJWT, generalLimiter, membreCon
 
 /**
  * @swagger
+ * /api/membre/annuaire:
+ *   get:
+ *     summary: 📋 Annuaire des membres (Membres approuvés seulement)
+ *     description: |
+ *       **Accès restreint aux membres approuvés uniquement**
+ *       
+ *       Consulter l'annuaire des membres de l'association avec données publiques.
+ *       Seuls les membres dont l'adhésion est validée peuvent accéder à cet annuaire.
+ *       
+ *       **Données affichées:**
+ *       - Numéro d'adhésion
+ *       - Nom et prénoms
+ *       - Adresse et ville de résidence
+ *       - Téléphone et email
+ *       - Profession
+ *       - Statut d'adhésion
+ *       
+ *       **Sécurité:**
+ *       - Accès limité aux membres approuvés avec formulaire soumis
+ *       - Données sensibles exclues (dates naissance, mots de passe, etc.)
+ *       - Journal d'audit pour toutes les consultations
+ *       - Recherche optionnelle dans tous les champs
+ *     tags: [Members]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *           minimum: 1
+ *         description: Numéro de page
+ *       - in: query
+ *         name: limite
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           minimum: 1
+ *           maximum: 100
+ *         description: Nombre d'éléments par page (max 100)
+ *       - in: query
+ *         name: recherche
+ *         schema:
+ *           type: string
+ *           minLength: 2
+ *           maxLength: 100
+ *         description: Rechercher dans nom, prénom, téléphone, email, adresse ou numéro d'adhésion
+ *         example: "Jean"
+ *     responses:
+ *       200:
+ *         description: Annuaire des membres récupéré avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Annuaire des membres récupéré"
+ *                 donnees:
+ *                   type: object
+ *                   properties:
+ *                     membres:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                             example: 15
+ *                           numero_adhesion:
+ *                             type: string
+ *                             example: "SGM-2025-001"
+ *                             description: "Numéro d'adhésion unique"
+ *                           nom_complet:
+ *                             type: string
+ *                             example: "Jean Claude MBONGO"
+ *                           prenoms:
+ *                             type: string
+ *                             example: "Jean Claude"
+ *                           nom:
+ *                             type: string
+ *                             example: "MBONGO"
+ *                           adresse:
+ *                             type: string
+ *                             example: "123 Avenue de la République"
+ *                           telephone:
+ *                             type: string
+ *                             example: "+241066123456"
+ *                           email:
+ *                             type: string
+ *                             example: "jean.mbongo@example.com"
+ *                           ville_residence:
+ *                             type: string
+ *                             example: "Libreville"
+ *                           profession:
+ *                             type: string
+ *                             example: "Ingénieur"
+ *                           statut:
+ *                             type: string
+ *                             example: "APPROUVE"
+ *                     pagination:
+ *                       $ref: '#/components/schemas/Pagination'
+ *                     information:
+ *                       type: string
+ *                       example: "147 membres approuvés dans l'association"
+ *       403:
+ *         description: Accès restreint - Seuls les membres approuvés peuvent consulter l'annuaire
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 erreur:
+ *                   type: string
+ *                   example: "Accès restreint. Seuls les membres avec une adhésion validée peuvent consulter l'annuaire des membres."
+ *       401:
+ *         description: Non authentifié
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get('/annuaire', authentifierJWT, generalLimiter, membreController.obtenirAnnuaireMembres);
+
+/**
+ * @swagger
  * /api/membre/telecharger-carte:
  *   get:
  *     summary: Télécharger carte PDF

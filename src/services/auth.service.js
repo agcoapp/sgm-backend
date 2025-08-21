@@ -297,12 +297,12 @@ class ServiceAuthentification {
       // Hacher le nouveau mot de passe
       const nouveauMotPasseHash = await this.hacherMotPasse(nouveauMotPasse);
 
-      // Mettre à jour et effacer le mot de passe temporaire pour sécurité
+      // Mettre à jour - garder le mot de passe temporaire pour SG/Président
       await prisma.utilisateur.update({
         where: { id: idUtilisateur },
         data: {
           mot_passe_hash: nouveauMotPasseHash,
-          mot_passe_temporaire: null, // Effacer le mot de passe temporaire après changement
+          // mot_passe_temporaire reste intact pour que SG/Président puisse le supprimer manuellement
           doit_changer_mot_passe: false
         }
       });
@@ -401,7 +401,7 @@ class ServiceAuthentification {
         where: { id: tokenRecuperation.id_utilisateur },
         data: {
           mot_passe_hash: motPasseHash,
-          mot_passe_temporaire: null, // Effacer le mot de passe temporaire après reset
+          // mot_passe_temporaire reste intact pour contrôle SG/Président
           doit_changer_mot_passe: false
         }
       });

@@ -923,6 +923,120 @@ router.get('/nouveaux-utilisateurs-credentials',
 
 /**
  * @swagger
+ * /api/secretaire/supprimer-mot-passe-temporaire:
+ *   delete:
+ *     summary: 🗑️ Supprimer mot de passe temporaire (SG/Président SEULEMENT)
+ *     description: |
+ *       **⚠️ ENDPOINT HAUTEMENT SÉCURISÉ ⚠️**
+ *       
+ *       Permet au SG ou Président de supprimer manuellement le mot de passe temporaire 
+ *       d'un utilisateur après l'avoir communiqué. Une fois supprimé, le mot de passe 
+ *       ne sera plus visible dans l'interface administrative.
+ *       
+ *       **Sécurité:**
+ *       - Accès strictement limité aux rôles SG/Président
+ *       - Vérifications multiples avant suppression
+ *       - Journal d'audit complet pour traçabilité
+ *       - Protection contre suppression de mots de passe d'administrateurs
+ *     tags: [Secretary]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [id_utilisateur]
+ *             properties:
+ *               id_utilisateur:
+ *                 type: integer
+ *                 example: 15
+ *                 description: ID de l'utilisateur dont supprimer le mot de passe temporaire
+ *     responses:
+ *       200:
+ *         description: Mot de passe temporaire supprimé avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Mot de passe temporaire supprimé avec succès"
+ *                 utilisateur:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     nom_complet:
+ *                       type: string
+ *                     nom_utilisateur:
+ *                       type: string
+ *                 action:
+ *                   type: string
+ *                   example: "Le mot de passe temporaire n'est plus visible dans l'interface"
+ *       400:
+ *         description: ID utilisateur invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 erreur:
+ *                   type: string
+ *                   example: "ID utilisateur requis et doit être un entier"
+ *                 code:
+ *                   type: string
+ *                   example: "ID_UTILISATEUR_INVALIDE"
+ *       403:
+ *         description: Accès interdit - Seuls SG et Président autorisés
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 erreur:
+ *                   type: string
+ *                   example: "Accès strictement limité aux Secrétaire Général et Président"
+ *                 code:
+ *                   type: string
+ *                   example: "ACCES_INTERDIT_SUPPRESSION_CREDENTIALS"
+ *       404:
+ *         description: Utilisateur non trouvé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 erreur:
+ *                   type: string
+ *                   example: "Utilisateur non trouvé"
+ *                 code:
+ *                   type: string
+ *                   example: "UTILISATEUR_NON_TROUVE"
+ *       409:
+ *         description: Aucun mot de passe temporaire à supprimer
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 erreur:
+ *                   type: string
+ *                   example: "Aucun mot de passe temporaire à supprimer pour cet utilisateur"
+ *                 code:
+ *                   type: string
+ *                   example: "AUCUN_MOT_PASSE_TEMPORAIRE"
+ */
+router.delete('/supprimer-mot-passe-temporaire', 
+  authentifierJWT, 
+  generalLimiter,
+  controleurSecretaire.supprimerMotPasseTemporaire
+);
+
+/**
+ * @swagger
  * /api/secretaire/mettre-a-jour-signature:
  *   post:
  *     summary: Mettre à jour signature présidente

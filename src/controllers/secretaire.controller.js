@@ -1394,6 +1394,122 @@ class ControleurSecretaire {
   }
 
   /**
+   * Supprimer le mot de passe temporaire d'un utilisateur (SG/Président uniquement)
+   */
+  async supprimerMotPasseTemporaire(req, res) {
+    try {
+      // Vérification de sécurité stricte : Seuls SG et Président peuvent accéder
+      if (req.utilisateur.role !== 'SECRETAIRE_GENERALE' && req.utilisateur.role !== 'PRESIDENT') {
+        logger.warn(`Tentative de suppression non autorisée de mot de passe temporaire par ${req.utilisateur.nom_utilisateur} (${req.utilisateur.role})`, {
+          utilisateur_id: req.utilisateur.id,
+          ip: req.ip,
+          user_agent: req.get('User-Agent')
+        });
+        
+        return res.status(403).json({
+          erreur: 'Accès strictement limité aux Secrétaire Général et Président',
+          code: 'ACCES_INTERDIT_SUPPRESSION_CREDENTIALS'
+        });
+      }
+
+      const { id_utilisateur } = req.body;
+
+      if (!id_utilisateur || !Number.isInteger(id_utilisateur)) {
+        return res.status(400).json({
+          erreur: 'ID utilisateur requis et doit être un entier',
+          code: 'ID_UTILISATEUR_INVALIDE'
+        });
+      }
+
+      // Vérifier que l'utilisateur existe et a un mot de passe temporaire
+      const utilisateur = await prisma.utilisateur.findUnique({
+        where: { id: id_utilisateur },
+        select: {
+          id: true,
+          prenoms: true,
+          nom: true,
+          nom_utilisateur: true,
+          mot_passe_temporaire: true,
+          role: true
+        }
+      });
+
+      if (!utilisateur) {
+        return res.status(404).json({
+          erreur: 'Utilisateur non trouvé',
+          code: 'UTILISATEUR_NON_TROUVE'
+        });
+      }
+
+      if (!utilisateur.mot_passe_temporaire) {
+        return res.status(409).json({
+          erreur: 'Aucun mot de passe temporaire à supprimer pour cet utilisateur',
+          code: 'AUCUN_MOT_PASSE_TEMPORAIRE'
+        });
+      }
+
+      // Empêcher la suppression du mot de passe temporaire d'un admin
+      if (utilisateur.role !== 'MEMBRE') {
+        return res.status(403).json({
+          erreur: 'Impossible de supprimer le mot de passe temporaire d\'un administrateur',
+          code: 'SUPPRESSION_ADMIN_INTERDITE'
+        });
+      }
+
+      // Supprimer le mot de passe temporaire
+      await prisma.utilisateur.update({
+        where: { id: id_utilisateur },
+        data: {
+          mot_passe_temporaire: null
+        }
+      });
+
+      // Journal d'audit pour traçabilité complète
+      await prisma.journalAudit.create({
+        data: {
+          id_utilisateur: req.utilisateur.id,
+          action: 'SUPPRESSION_MOT_PASSE_TEMPORAIRE',
+          details: {
+            utilisateur_cible: id_utilisateur,
+            nom_complet_cible: `${utilisateur.prenoms} ${utilisateur.nom}`,
+            nom_utilisateur_cible: utilisateur.nom_utilisateur,
+            supprime_par_role: req.utilisateur.role
+          },
+          adresse_ip: req.ip,
+          agent_utilisateur: req.get('User-Agent')
+        }
+      });
+
+      logger.info(`Mot de passe temporaire supprimé pour utilisateur ${id_utilisateur} par ${req.utilisateur.role} ${req.utilisateur.nom_utilisateur}`, {
+        utilisateur_cible: id_utilisateur,
+        supprime_par: req.utilisateur.id
+      });
+
+      res.json({
+        message: 'Mot de passe temporaire supprimé avec succès',
+        utilisateur: {
+          id: utilisateur.id,
+          nom_complet: `${utilisateur.prenoms} ${utilisateur.nom}`,
+          nom_utilisateur: utilisateur.nom_utilisateur
+        },
+        action: 'Le mot de passe temporaire n\'est plus visible dans l\'interface'
+      });
+
+    } catch (error) {
+      logger.error('Erreur suppression mot de passe temporaire:', {
+        utilisateur_id: req.utilisateur.id,
+        error: error.message,
+        stack: error.stack
+      });
+      
+      res.status(500).json({
+        erreur: 'Erreur lors de la suppression du mot de passe temporaire',
+        code: 'ERREUR_SUPPRESSION_CREDENTIALS'
+      });
+    }
+  }
+
+  /**
    * Mettre à jour la signature du président
    */
   async mettreAJourSignature(req, res) {
