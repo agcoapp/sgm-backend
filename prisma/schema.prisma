@@ -54,6 +54,7 @@ model Utilisateur {
   // Authentification locale
   nom_utilisateur        String?   @unique // Nom d'utilisateur généré par secrétaire
   mot_passe_hash         String?   // Hash du mot de passe
+  mot_passe_temporaire   String?   // Mot de passe temporaire (SENSIBLE - accès SG/Président uniquement)
   doit_changer_mot_passe Boolean   @default(false) // True si première connexion
   a_change_mot_passe_temporaire Boolean @default(false) // True si a déjà changé le mot de passe temporaire
   a_paye                 Boolean   @default(false) // True si a payé physiquement

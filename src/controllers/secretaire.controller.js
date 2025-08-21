@@ -201,7 +201,7 @@ class ControleurSecretaire {
   async creerNouveauMembre(req, res) {
     try {
       const donneesValidees = creerNouveauMembreSchema.parse(req.body);
-      const idSecretaire = req.user.id;
+      const idSecretaire = req.utilisateur.id;
 
       // Créer le nouveau membre avec identifiants
       const resultat = await serviceAuth.creerNouveauMembre(
@@ -253,7 +253,7 @@ class ControleurSecretaire {
   async creerIdentifiants(req, res) {
     try {
       const donneesValidees = creerIdentifiantsSchema.parse(req.body);
-      const idSecretaire = req.user.id;
+      const idSecretaire = req.utilisateur.id;
 
       // Vérifier que l'utilisateur existe et a payé
       const utilisateurCible = await prisma.utilisateur.findUnique({
@@ -335,7 +335,7 @@ class ControleurSecretaire {
   async marquerCommePaye(req, res) {
     try {
       const { id_utilisateur } = req.body;
-      const idSecretaire = req.user.id;
+      const idSecretaire = req.utilisateur.id;
 
       if (!id_utilisateur || !Number.isInteger(id_utilisateur)) {
         return res.status(400).json({
@@ -601,7 +601,7 @@ class ControleurSecretaire {
   async approuverFormulaire(req, res) {
     try {
       const { id_utilisateur, commentaire } = req.body;
-      const idSecretaire = req.user.id;
+      const idSecretaire = req.utilisateur.id;
 
       if (!id_utilisateur) {
         return res.status(400).json({
@@ -723,7 +723,7 @@ class ControleurSecretaire {
   async rejeterFormulaire(req, res) {
     try {
       const { id_utilisateur, raison } = req.body;
-      const idSecretaire = req.user.id;
+      const idSecretaire = req.utilisateur.id;
 
       if (!id_utilisateur || !raison) {
         return res.status(400).json({
@@ -801,7 +801,7 @@ class ControleurSecretaire {
   async supprimerFormulaire(req, res) {
     try {
       const { id_utilisateur, raison } = req.body;
-      const idSecretaire = req.user.id;
+      const idSecretaire = req.utilisateur.id;
 
       if (!id_utilisateur) {
         return res.status(400).json({
@@ -875,7 +875,7 @@ class ControleurSecretaire {
    */
   async modifierFormulaire(req, res) {
     try {
-      const idSecretaire = req.user.id;
+      const idSecretaire = req.utilisateur.id;
       const { id_utilisateur, modifications } = req.body;
 
       if (!id_utilisateur || !modifications) {
@@ -1191,7 +1191,7 @@ class ControleurSecretaire {
    */
   async desactiverUtilisateur(req, res) {
     try {
-      const idSecretaire = req.user.id;
+      const idSecretaire = req.utilisateur.id;
       const { id_utilisateur, raison } = req.body;
 
       if (!id_utilisateur || !raison) {
@@ -1279,11 +1279,126 @@ class ControleurSecretaire {
   }
 
   /**
+   * Lister les nouveaux utilisateurs créés avec leurs identifiants temporaires (SG/Président uniquement)
+   */
+  async listerNouveauxUtilisateursAvecCredits(req, res) {
+    try {
+      // Vérification de sécurité stricte : Seuls SG et Président peuvent accéder
+      if (req.utilisateur.role !== 'SECRETAIRE_GENERALE' && req.utilisateur.role !== 'PRESIDENT') {
+        logger.warn(`Tentative d'accès non autorisé aux mots de passe temporaires par ${req.utilisateur.nom_utilisateur} (${req.utilisateur.role})`, {
+          utilisateur_id: req.utilisateur.id,
+          ip: req.ip,
+          user_agent: req.get('User-Agent')
+        });
+        
+        return res.status(403).json({
+          erreur: 'Accès strictement limité aux Secrétaire Général et Président',
+          code: 'ACCES_INTERDIT_CREDENTIALS'
+        });
+      }
+
+      const { page = 1, limite = 20, inclure_mot_passe_change = false } = req.query;
+      const offset = (parseInt(page) - 1) * parseInt(limite);
+
+      // Construire les conditions - par défaut, exclure ceux qui ont changé leur mot de passe
+      const conditionsBase = {
+        role: 'MEMBRE',
+        NOT: { nom_utilisateur: null }, // Ont des identifiants
+        NOT: { mot_passe_temporaire: null } // Ont encore un mot de passe temporaire stocké
+      };
+
+      // Si inclure_mot_passe_change est false (défaut), on exclut ceux qui ont déjà changé
+      if (inclure_mot_passe_change !== 'true') {
+        conditionsBase.doit_changer_mot_passe = true; // Seulement ceux qui n'ont pas encore changé
+      }
+
+      // Récupérer les nouveaux utilisateurs avec mots de passe temporaires
+      const [utilisateurs, total] = await Promise.all([
+        prisma.utilisateur.findMany({
+          where: conditionsBase,
+          select: {
+            id: true,
+            prenoms: true,
+            nom: true,
+            nom_utilisateur: true,
+            mot_passe_temporaire: true, // SENSIBLE - seulement pour SG/Président
+            telephone: true,
+            statut: true,
+            doit_changer_mot_passe: true,
+            a_soumis_formulaire: true,
+            derniere_connexion: true,
+            cree_le: true,
+            modifie_le: true
+          },
+          orderBy: { cree_le: 'desc' },
+          skip: offset,
+          take: parseInt(limite)
+        }),
+        prisma.utilisateur.count({ where: conditionsBase })
+      ]);
+
+      // Journal d'audit pour traçabilité
+      await prisma.journalAudit.create({
+        data: {
+          id_utilisateur: req.utilisateur.id,
+          action: 'CONSULTATION_CREDENTIALS_TEMPORAIRES',
+          details: {
+            nombre_utilisateurs: utilisateurs.length,
+            consulte_par_role: req.utilisateur.role,
+            inclure_mot_passe_change: inclure_mot_passe_change === 'true'
+          },
+          adresse_ip: req.ip,
+          agent_utilisateur: req.get('User-Agent')
+        }
+      });
+
+      res.json({
+        message: 'Liste des nouveaux utilisateurs avec identifiants temporaires',
+        donnees: {
+          utilisateurs: utilisateurs.map(utilisateur => ({
+            id: utilisateur.id,
+            nom_complet: `${utilisateur.prenoms} ${utilisateur.nom}`,
+            nom_utilisateur: utilisateur.nom_utilisateur,
+            mot_passe_temporaire: utilisateur.mot_passe_temporaire, // SENSIBLE
+            telephone: utilisateur.telephone,
+            statut: utilisateur.statut,
+            doit_changer_mot_passe: utilisateur.doit_changer_mot_passe,
+            a_soumis_formulaire: utilisateur.a_soumis_formulaire,
+            derniere_connexion: utilisateur.derniere_connexion,
+            date_creation: utilisateur.cree_le,
+            derniere_modification: utilisateur.modifie_le,
+            statut_connexion: utilisateur.derniere_connexion ? 'connecte' : 'jamais_connecte'
+          })),
+          pagination: {
+            page: parseInt(page),
+            limite: parseInt(limite),
+            total,
+            pages_total: Math.ceil(total / parseInt(limite))
+          },
+          avertissement_securite: 'Ces mots de passe sont sensibles et ne doivent être partagés qu\'avec les membres concernés'
+        }
+      });
+
+    } catch (error) {
+      logger.error('Erreur consultation identifiants temporaires:', {
+        utilisateur_id: req.utilisateur.id,
+        error: error.message,
+        stack: error.stack
+      });
+      
+      res.status(500).json({
+        erreur: 'Erreur lors de la récupération des identifiants temporaires',
+        code: 'ERREUR_CONSULTATION_CREDENTIALS'
+      });
+    }
+  }
+
+  /**
    * Mettre à jour la signature du président
    */
   async mettreAJourSignature(req, res) {
     try {
-      const idSecretaire = req.user.id;
+      const idSecretaire = req.utilisateur.id;
       const { url_signature, cloudinary_id } = req.body;
 
       if (!url_signature || !cloudinary_id) {

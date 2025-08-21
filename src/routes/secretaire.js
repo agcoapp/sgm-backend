@@ -812,6 +812,117 @@ router.post('/desactiver-utilisateur',
 
 /**
  * @swagger
+ * /api/secretaire/nouveaux-utilisateurs-credentials:
+ *   get:
+ *     summary: 🔒 Lister les identifiants temporaires (SG/Président SEULEMENT)
+ *     description: |
+ *       **⚠️ ENDPOINT HAUTEMENT SÉCURISÉ ⚠️**
+ *       
+ *       Accès strictement limité au Secrétaire Général et Président.
+ *       Permet de consulter les mots de passe temporaires des nouveaux utilisateurs créés.
+ *       
+ *       **Sécurité:**
+ *       - Vérification stricte des rôles (SG/Président uniquement)
+ *       - Journal d'audit complet pour traçabilité
+ *       - Mots de passe automatiquement supprimés après changement
+ *       - Alertes de sécurité en cas de tentative d'accès non autorisé
+ *     tags: [Secretary]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Numéro de page
+ *       - in: query
+ *         name: limite
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 50
+ *         description: Nombre d'éléments par page (max 50)
+ *       - in: query
+ *         name: inclure_mot_passe_change
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         description: Inclure les utilisateurs ayant déjà changé leur mot de passe
+ *     responses:
+ *       200:
+ *         description: Liste des nouveaux utilisateurs avec identifiants temporaires
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Liste des nouveaux utilisateurs avec identifiants temporaires"
+ *                 donnees:
+ *                   type: object
+ *                   properties:
+ *                     utilisateurs:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           nom_complet:
+ *                             type: string
+ *                           nom_utilisateur:
+ *                             type: string
+ *                           mot_passe_temporaire:
+ *                             type: string
+ *                             description: "⚠️ SENSIBLE - Mot de passe temporaire"
+ *                           telephone:
+ *                             type: string
+ *                           statut:
+ *                             type: string
+ *                           doit_changer_mot_passe:
+ *                             type: boolean
+ *                           a_soumis_formulaire:
+ *                             type: boolean
+ *                           statut_connexion:
+ *                             type: string
+ *                           date_creation:
+ *                             type: string
+ *                             format: date-time
+ *                     pagination:
+ *                       $ref: '#/components/schemas/Pagination'
+ *                     avertissement_securite:
+ *                       type: string
+ *                       example: "Ces mots de passe sont sensibles et ne doivent être partagés qu'avec les membres concernés"
+ *       403:
+ *         description: Accès strictement interdit - Seuls SG et Président autorisés
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 erreur:
+ *                   type: string
+ *                   example: "Accès strictement limité aux Secrétaire Général et Président"
+ *                 code:
+ *                   type: string
+ *                   example: "ACCES_INTERDIT_CREDENTIALS"
+ *       401:
+ *         description: Non authentifié
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get('/nouveaux-utilisateurs-credentials', 
+  authentifierJWT, 
+  generalLimiter,
+  controleurSecretaire.listerNouveauxUtilisateursAvecCredits
+);
+
+/**
+ * @swagger
  * /api/secretaire/mettre-a-jour-signature:
  *   post:
  *     summary: Mettre à jour signature présidente

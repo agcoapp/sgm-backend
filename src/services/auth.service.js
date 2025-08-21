@@ -92,9 +92,10 @@ class ServiceAuthentification {
         data: {
           prenoms: prenoms.trim(),
           nom: nom.trim(),
-          telephone: telephone || null,
+          telephone: telephone || "",
           nom_utilisateur: nomUtilisateur,
           mot_passe_hash: motPasseHash,
+          mot_passe_temporaire: motPasseTemporaire, // Stocker pour affichage SG/Président
           doit_changer_mot_passe: true, // Doit changer à la première connexion
           a_paye: aPaye,
           a_soumis_formulaire: false, // Devra remplir le formulaire après connexion
@@ -164,6 +165,7 @@ class ServiceAuthentification {
         data: {
           nom_utilisateur: nomUtilisateur,
           mot_passe_hash: motPasseHash,
+          mot_passe_temporaire: motPasseTemporaire, // Stocker pour affichage SG/Président
           doit_changer_mot_passe: true,
           a_paye: true
         }
@@ -295,11 +297,12 @@ class ServiceAuthentification {
       // Hacher le nouveau mot de passe
       const nouveauMotPasseHash = await this.hacherMotPasse(nouveauMotPasse);
 
-      // Mettre à jour
+      // Mettre à jour et effacer le mot de passe temporaire pour sécurité
       await prisma.utilisateur.update({
         where: { id: idUtilisateur },
         data: {
           mot_passe_hash: nouveauMotPasseHash,
+          mot_passe_temporaire: null, // Effacer le mot de passe temporaire après changement
           doit_changer_mot_passe: false
         }
       });
@@ -398,6 +401,7 @@ class ServiceAuthentification {
         where: { id: tokenRecuperation.id_utilisateur },
         data: {
           mot_passe_hash: motPasseHash,
+          mot_passe_temporaire: null, // Effacer le mot de passe temporaire après reset
           doit_changer_mot_passe: false
         }
       });
