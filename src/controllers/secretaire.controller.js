@@ -1589,17 +1589,35 @@ class ControleurSecretaire {
         });
       }
 
+      // Trouver le président
+      const president = await prisma.utilisateur.findFirst({
+        where: { role: 'PRESIDENT' },
+        select: { id: true, prenoms: true, nom: true }
+      });
+
+      if (!president) {
+        return res.status(404).json({
+          type: 'resource_not_found',
+          message: 'Aucun président trouvé dans le système',
+          code: 'PRESIDENT_NOT_FOUND',
+          timestamp: new Date().toISOString(),
+          suggestions: [
+            'Créez d\'abord un compte avec le rôle PRESIDENT',
+            'Vérifiez que l\'utilisateur président existe'
+          ]
+        });
+      }
+
       // Désactiver l'ancienne signature
       await prisma.signature.updateMany({
         where: { est_active: true },
         data: { est_active: false }
       });
 
-      // Créer la nouvelle signature (assumant que le secrétaire gère la signature du président)
-      // Pour une implémentation plus stricte, on pourrait vérifier que l'utilisateur est bien président
+      // Créer la nouvelle signature avec l'ID du vrai président
       const nouvelleSignature = await prisma.signature.create({
         data: {
-          id_president: idSecretaire, // En réalité, ce devrait être l'ID du président
+          id_president: president.id, // Utiliser l'ID du vrai président
           url_signature,
           cloudinary_id,
           est_active: true
@@ -1612,34 +1630,38 @@ class ControleurSecretaire {
           id_utilisateur: idSecretaire,
           action: 'METTRE_A_JOUR_SIGNATURE',
           details: {
-            ancienne_signature: 'désactivée',
-            nouvelle_signature: url_signature
+            president_id: president.id,
+            president_nom: `${president.prenoms} ${president.nom}`,
+            nouvelle_signature: url_signature,
+            gere_par: idSecretaire
           },
           adresse_ip: req.ip,
           agent_utilisateur: req.get('User-Agent')
         }
       });
 
-      logger.info(`Signature mise à jour par secrétaire ${idSecretaire}`, {
+      logger.info(`Signature mise à jour par secrétaire ${idSecretaire} pour président ${president.id}`, {
         signature_id: nouvelleSignature.id,
-        url: url_signature
+        url: url_signature,
+        president: `${president.prenoms} ${president.nom}`
       });
 
-            res.json({
+      res.json({
         message: 'Signature mise à jour avec succès',
         signature: {
           id: nouvelleSignature.id,
           url_signature: nouvelleSignature.url_signature,
-          date_upload: new Date(nouvelleSignature.telecharge_le)
+          date_upload: new Date(nouvelleSignature.telecharge_le),
+          president: `${president.prenoms} ${president.nom}`
         }
       });
 
     } catch (error) {
-      logger.error('Erreur mise à jour signature:', error);
-      res.status(500).json({
-        erreur: 'Erreur lors de la mise à jour de la signature',
-        code: 'ERREUR_MAJ_SIGNATURE'
-      });
+      const context = {
+        operation: 'update_president_signature',
+        user_id: req.utilisateur?.id
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 }

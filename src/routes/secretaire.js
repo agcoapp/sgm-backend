@@ -1039,8 +1039,8 @@ router.delete('/supprimer-mot-passe-temporaire',
  * @swagger
  * /api/secretaire/mettre-a-jour-signature:
  *   post:
- *     summary: Mettre à jour signature présidente
- *     description: Mettre à jour la signature qui sera apposée sur tous les formulaires approuvés
+ *     summary: Mettre à jour signature président
+ *     description: Mettre à jour la signature qui sera apposée sur tous les formulaires approuvés (accessible aux secrétaires et au président)
  *     tags: [Secretary]
  *     security:
  *       - BearerAuth: []

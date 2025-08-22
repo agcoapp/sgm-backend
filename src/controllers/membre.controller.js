@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const logger = require('../config/logger');
 const membreService = require('../services/membre.service');
+const ErrorHandler = require('../utils/errorHandler');
 
 const formatterDateFrancaise = (date) => {
   if (!date) return null;
@@ -380,18 +381,44 @@ class MembreController {
     try {
       const signature = await membreService.getPresidentSignature();
 
-      if (!signature) {
-        const error = new Error("Signature du président non trouvée");
-        error.status = 404;
-        throw error;
-      }
-
       res.json({
         signature_url: signature.url_signature,
         nom_president: `${signature.utilisateur.prenoms} ${signature.utilisateur.nom}`,
       });
     } catch (error) {
-      next(error);
+      // Enhanced error handling for signature not found
+      if (error.code === 'PRESIDENT_SIGNATURE_NOT_FOUND') {
+        logger.error('President signature not found - Debug info:', {
+          debug_info: error.debugInfo,
+          user_id: req.utilisateur?.id,
+          operation: 'get_president_signature'
+        });
+
+        const isDevelopment = process.env.NODE_ENV === 'development';
+        
+        return res.status(404).json({
+          type: 'resource_not_found',
+          message: 'Aucune signature de président active trouvée',
+          code: 'PRESIDENT_SIGNATURE_NOT_FOUND',
+          timestamp: new Date().toISOString(),
+          context: 'president_signature_lookup',
+          suggestions: [
+            'Le président doit d\'abord télécharger sa signature',
+            'Vérifiez que le président a un compte avec le rôle PRESIDENT',
+            'Contactez un administrateur système pour configurer la signature'
+          ],
+          ...(isDevelopment && {
+            debug_info: error.debugInfo
+          })
+        });
+      }
+
+      // Handle other errors normally
+      const context = {
+        operation: 'get_president_signature',
+        user_id: req.utilisateur?.id
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 }

@@ -301,7 +301,7 @@ router.get('/telecharger-carte', authentifierJWT, generalLimiter, membreControll
  * /api/membre/president-signature:
  *   get:
  *     summary: Get president's signature
- *     description: Get the active signature of the president for display in forms (Secretary and President access only)
+ *     description: Get the active signature of the president for display in forms (accessible to Secretary and President)
  *     tags: [Member]
  *     security:
  *       - BearerAuth: []
