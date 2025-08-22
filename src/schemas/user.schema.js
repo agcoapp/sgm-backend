@@ -178,7 +178,7 @@ const validerFichiersAdhesion = (files) => {
     return { valid: false, errors };
   }
 
-  const champsFile = ['photo_profil']; // Seulement photo de profil
+  const champsFile = ['selfie_photo_url']; // Seulement photo de profil
   
   // Photo de pièce optionnelle pour l'instant (commentée)
   // if (files.photo_piece) {
