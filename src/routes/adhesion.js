@@ -167,6 +167,94 @@ router.get('/schema', adhesionController.getAdhesionSchema);
 
 /**
  * @swagger
+ * /api/adhesion/resoumission:
+ *   put:
+ *     summary: Resoumission après rejet
+ *     description: Permet à un utilisateur rejeté de mettre à jour et resoummettre son formulaire
+ *     tags: [Adhesion]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             allOf:
+ *               - $ref: '#/components/schemas/AdhesionRequest'
+ *               - type: object
+ *                 properties:
+ *                   telephone:
+ *                     type: string
+ *                     description: Téléphone pour identifier l'utilisateur à mettre à jour
+ *                     example: "+242066123456"
+ *                 required:
+ *                   - telephone
+ *     responses:
+ *       200:
+ *         description: Formulaire resoumis avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Formulaire mis à jour et resoumis avec succès"
+ *                 adhesion:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     statut:
+ *                       type: string
+ *                       example: "EN_ATTENTE"
+ *       404:
+ *         description: Utilisateur non trouvé ou non rejeté
+ *       400:
+ *         description: Données invalides
+ */
+router.put('/resoumission', uploadLimiter, adhesionController.resoumettreDemande);
+
+/**
+ * @swagger
+ * /api/adhesion/details-rejet:
+ *   get:
+ *     summary: Détails du rejet
+ *     description: Obtenir les détails du rejet d'un formulaire pour correction
+ *     tags: [Adhesion]
+ *     parameters:
+ *       - in: query
+ *         name: telephone
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Numéro de téléphone du demandeur
+ *         example: "+242066123456"
+ *     responses:
+ *       200:
+ *         description: Détails du rejet récupérés
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 rejet:
+ *                   type: object
+ *                   properties:
+ *                     raison:
+ *                       type: string
+ *                       example: "Documents illisibles"
+ *                     date_rejet:
+ *                       type: string
+ *                       format: date-time
+ *                     peut_resoumis:
+ *                       type: boolean
+ *                       example: true
+ *       404:
+ *         description: Aucun rejet trouvé pour ce téléphone
+ */
+router.get('/details-rejet', adhesionController.obtenirDetailsRejet);
+
+/**
+ * @swagger
  * /api/adhesion/test-pdf:
  *   get:
  *     summary: Générer PDF de test

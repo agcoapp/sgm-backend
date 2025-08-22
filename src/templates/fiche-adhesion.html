@@ -338,11 +338,19 @@
             <div class="signatures">
                 <div class="signature-box">
                     <div class="signature-label">Signature du Président(e)</div>
-                    <div class="signature-space"></div>
+                    <div class="signature-space">
+                        {{#if signature_president_url}}
+                            <img src="{{signature_president_url}}" alt="Signature du Président" style="max-height: 40px; max-width: 150px;" />
+                        {{/if}}
+                    </div>
                 </div>
                 <div class="signature-right">
                     <div class="signature-label">Signature de l'Adhérent(e)</div>
-                    <div class="signature-space"></div>
+                    <div class="signature-space">
+                        {{#if signature_membre_url}}
+                            <img src="{{signature_membre_url}}" alt="Signature du Membre" style="max-height: 40px; max-width: 150px;" />
+                        {{/if}}
+                    </div>
                     <div class="lu-approuve">Lu et Approuvé</div>
                 </div>
             </div>

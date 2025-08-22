@@ -12,19 +12,50 @@ class PDFGeneratorService {
    */
   async initBrowser() {
     if (!this.browser) {
-      this.browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu'
-        ]
-      });
-      logger.info('Navigateur Puppeteer initialisé');
+      try {
+        // Configuration pour environnement de production (Docker/Railway)
+        const browserConfig = {
+          headless: true,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor'
+          ]
+        };
+
+        // En production, utiliser executablePath si Chrome n'est pas trouvé automatiquement
+        if (process.env.NODE_ENV === 'production') {
+          // Essayer différents chemins Chrome possibles
+          const possiblePaths = [
+            '/usr/bin/chromium-browser',
+            '/usr/bin/chromium',
+            '/usr/bin/google-chrome-stable',
+            '/usr/bin/google-chrome',
+            '/opt/google/chrome/chrome'
+          ];
+          
+          const fs = require('fs');
+          for (const path of possiblePaths) {
+            if (fs.existsSync(path)) {
+              browserConfig.executablePath = path;
+              logger.info(`Chrome trouvé à: ${path}`);
+              break;
+            }
+          }
+        }
+
+        this.browser = await puppeteer.launch(browserConfig);
+        logger.info('Navigateur Puppeteer initialisé avec succès');
+      } catch (error) {
+        logger.error('Échec initialisation Puppeteer:', error);
+        throw new Error(`Impossible d'initialiser le navigateur pour la génération PDF: ${error.message}`);
+      }
     }
     return this.browser;
   }
@@ -43,7 +74,7 @@ class PDFGeneratorService {
   /**
    * Génère une fiche d'adhésion PDF à partir du template HTML
    */
-  async genererFicheAdhesion(donneesUtilisateur, photoProfilUrl) {
+  async genererFicheAdhesion(donneesUtilisateur, photoProfilUrl, signaturePresidentUrl = null) {
     let page = null;
     
     try {
@@ -52,7 +83,8 @@ class PDFGeneratorService {
       // Générer le HTML avec les données
       const html = await templateService.genererHtmlFicheAdhesion(
         donneesUtilisateur, 
-        photoProfilUrl
+        photoProfilUrl,
+        signaturePresidentUrl
       );
 
       // Initialiser le navigateur

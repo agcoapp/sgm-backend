@@ -124,7 +124,7 @@ class EmailService {
   /**
    * Notification de formulaire rejeté
    */
-  async notifierFormulaireRejete(utilisateur, raisonRejet) {
+  async notifierFormulaireRejete(utilisateur, donneesRejet) {
     if (!utilisateur.email) {
       logger.info('Pas d\'email pour notification rejet', {
         utilisateur_id: utilisateur.id,
@@ -134,7 +134,7 @@ class EmailService {
     }
 
     const sujet = '⚠️ Votre demande d\'adhésion nécessite des corrections - SGM Association';
-    const contenuHTML = this.genererTemplateRejet(utilisateur, raisonRejet);
+    const contenuHTML = this.genererTemplateRejet(utilisateur, donneesRejet);
 
     return await this.envoyerEmail(utilisateur.email, sujet, contenuHTML);
   }
@@ -243,7 +243,7 @@ class EmailService {
   /**
    * Template HTML pour rejet
    */
-  genererTemplateRejet(utilisateur, raisonRejet) {
+  genererTemplateRejet(utilisateur, donneesRejet) {
     return `
 <!DOCTYPE html>
 <html>
@@ -264,18 +264,26 @@ class EmailService {
 
     <div style="background-color: #fff3cd; border: 2px solid #ffeaa7; padding: 20px; border-radius: 8px; margin: 25px 0;">
       <h3 style="color: #856404; margin: 0 0 15px 0;">📝 Corrections nécessaires :</h3>
-      <div style="background-color: white; padding: 15px; border-radius: 5px; font-size: 16px;">
-        "${raisonRejet}"
+      <div style="background-color: white; padding: 15px; border-radius: 5px; font-size: 16px; margin-bottom: 15px;">
+        <strong>Raison principale :</strong><br>
+        "${donneesRejet.raison_principale || donneesRejet}"
       </div>
+      ${donneesRejet.suggestions && donneesRejet.suggestions.length > 0 ? `
+      <div style="background-color: #e7f3ff; padding: 15px; border-radius: 5px; font-size: 14px;">
+        <strong>💡 Suggestions pour la correction :</strong>
+        <ul style="margin: 10px 0; padding-left: 20px;">
+          ${donneesRejet.suggestions.map(suggestion => `<li>${suggestion}</li>`).join('')}
+        </ul>
+      </div>` : ''}
     </div>
 
     <h3 style="color: #007bff;">🔄 Que faire maintenant ?</h3>
     <ol>
       <li>📋 Prenez connaissance des corrections demandées ci-dessus</li>
       <li>📄 Préparez les documents ou informations corrigés</li>
-      <li>💻 Connectez-vous à votre espace membre</li>
-      <li>✏️ Mettez à jour votre formulaire avec les corrections</li>
-      <li>📤 Soumettez à nouveau votre demande</li>
+      <li>📱 Utilisez notre système de resoumission en ligne</li>
+      <li>✏️ Soumettez votre formulaire corrigé avec le même numéro de téléphone</li>
+      <li>⏰ Votre demande sera réexaminée automatiquement par notre équipe</li>
     </ol>
 
     <div style="background-color: #d1ecf1; border: 2px solid #bee5eb; padding: 20px; border-radius: 8px; margin: 25px 0;">

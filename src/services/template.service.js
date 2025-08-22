@@ -61,7 +61,7 @@ class TemplateService {
    * @param {string} photoProfilUrl - URL de la photo Cloudinary
    * @returns {object} - Données formatées pour le template
    */
-  preparerDonneesFicheAdhesion(utilisateur, photoProfilUrl) {
+  preparerDonneesFicheAdhesion(utilisateur, photoProfilUrl, signaturePresidentUrl = null) {
     // Helper pour formater les dates
     const formaterDate = (date) => {
       if (!date) return '';
@@ -111,7 +111,11 @@ class TemplateService {
 
       // URLs
       photo_profil_url: photoProfilUrl || null,
-      logo_url: logoUrl
+      logo_url: logoUrl,
+      
+      // Signatures
+      signature_membre_url: utilisateur.signature_url || null,
+      signature_president_url: signaturePresidentUrl || null
     };
   }
 
@@ -121,9 +125,9 @@ class TemplateService {
    * @param {string} photoProfilUrl - URL photo Cloudinary
    * @returns {Promise<string>} - HTML prêt pour conversion PDF
    */
-  async genererHtmlFicheAdhesion(utilisateur, photoProfilUrl) {
+  async genererHtmlFicheAdhesion(utilisateur, photoProfilUrl, signaturePresidentUrl = null) {
     try {
-      const donnees = this.preparerDonneesFicheAdhesion(utilisateur, photoProfilUrl);
+      const donnees = this.preparerDonneesFicheAdhesion(utilisateur, photoProfilUrl, signaturePresidentUrl);
       const html = await this.compileTemplate('fiche-adhesion', donnees);
       
       logger.info(`HTML fiche adhésion généré pour utilisateur ${utilisateur.id}`);

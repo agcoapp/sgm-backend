@@ -63,14 +63,11 @@ class AdhesionController {
         }
       }
 
-      // Générer le numéro d'adhésion automatiquement
-      const compteurAdhesions = await prisma.utilisateur.count();
-      const numeroAdhesion = `N°${String(compteurAdhesions + 1).padStart(3, '0')}/AGCO/P/${new Date().getMonth() + 1}-${new Date().getFullYear()}`;
+      // Note: Le numéro d'adhésion sera généré lors de l'approbation par le secrétaire
 
-      // Créer l'enregistrement utilisateur
+      // Créer l'enregistrement utilisateur (statut EN_ATTENTE, pas de numéro d'adhésion)
       const nouvelUtilisateur = await prisma.utilisateur.create({
         data: {
-          numero_adhesion: numeroAdhesion,
           prenoms: donneesValidees.prenoms,
           nom: donneesValidees.nom,
           date_naissance: convertirDateFrancaise(donneesValidees.date_naissance),
@@ -117,23 +114,33 @@ class AdhesionController {
         nombre_enfants: donneesValidees.nombre_enfants,
         selfie_photo_url: donneesValidees.selfie_photo_url,
         signature_url: donneesValidees.signature_url,
-        commentaire: donneesValidees.commentaire,
-        numero_adhesion: numeroAdhesion
+        commentaire: donneesValidees.commentaire
       };
 
-      // Générer le PDF du formulaire d'adhésion
+      // Générer le PDF du formulaire d'adhésion (non-bloquant)
       logger.info(`Génération PDF formulaire pour utilisateur ${nouvelUtilisateur.id}`);
-      const pdfBuffer = await pdfGeneratorService.genererFicheAdhesion(
-        nouvelUtilisateur, 
-        donneesValidees.selfie_photo_url
-      );
+      let urlPdfFormulaire = null;
+      
+      try {
+        const pdfBuffer = await pdfGeneratorService.genererFicheAdhesion(
+          nouvelUtilisateur, 
+          donneesValidees.selfie_photo_url
+        );
 
-      // Uploader le PDF vers Cloudinary
-      const urlPdfFormulaire = await cloudinaryService.uploadFormulaireAdhesion(
-        pdfBuffer,
-        nouvelUtilisateur.id,
-        numeroAdhesion
-      );
+        // Uploader le PDF vers Cloudinary
+        urlPdfFormulaire = await cloudinaryService.uploadFormulaireAdhesion(
+          pdfBuffer,
+          nouvelUtilisateur.id,
+          `TEMP_${nouvelUtilisateur.id}`
+        );
+        logger.info(`PDF généré et uploadé avec succès pour utilisateur ${nouvelUtilisateur.id}`);
+      } catch (pdfError) {
+        logger.warn(`Échec génération PDF pour utilisateur ${nouvelUtilisateur.id} - Adhésion continue sans PDF`, {
+          error: pdfError.message,
+          utilisateur_id: nouvelUtilisateur.id
+        });
+        // Le processus d'adhésion continue même sans PDF
+      }
 
       // Créer la première version du formulaire d'adhésion
       const formulaireAdhesion = await prisma.formulaireAdhesion.create({
@@ -152,7 +159,6 @@ class AdhesionController {
           id_utilisateur: nouvelUtilisateur.id,
           action: 'DEMANDE_ADHESION',
           details: {
-            numero_adhesion: numeroAdhesion,
             telephone: donneesValidees.telephone,
             numero_carte_consulaire: donneesValidees.numero_carte_consulaire,
             formulaire_soumis: true
@@ -171,7 +177,7 @@ class AdhesionController {
         message: 'Demande d\'adhésion soumise avec succès',
         adhesion: {
           id: nouvelUtilisateur.id,
-          numero_adhesion: numeroAdhesion,
+          reference_temporaire: `TEMP_${nouvelUtilisateur.id}`,
           nom_complet: `${donneesValidees.prenoms} ${donneesValidees.nom}`,
           telephone: donneesValidees.telephone,
           numero_carte_consulaire: donneesValidees.numero_carte_consulaire,
@@ -180,12 +186,13 @@ class AdhesionController {
           url_fiche_adhesion: urlPdfFormulaire // URL de téléchargement du PDF
         },
         prochaines_etapes: [
-          'Votre demande d\'adhésion est en cours d\'examen par nos administrateurs',
-          'Vous recevrez des notifications par SMS sur l\'avancement de votre dossier',
+          'Votre demande d\'adhésion est en cours d\'examen par le secrétariat',
+          'Un numéro d\'adhésion vous sera attribué après approbation',
+          'Vous recevrez des notifications par email/SMS sur l\'avancement de votre dossier',
           'Pour suivre votre demande en ligne, vous pouvez créer un compte sur notre application'
         ],
         // peut_creer_compte: true, // COMMENTÉ - Plus nécessaire sans Clerk
-        reference_adhesion: numeroAdhesion
+        message_important: 'Un numéro d\'adhésion définitif vous sera attribué après validation de votre demande'
       });
 
     } catch (error) {
@@ -616,6 +623,265 @@ class AdhesionController {
       res.status(500).json({
         error: 'Erreur lors de la récupération du schéma',
         code: 'ERREUR_SCHEMA'
+      });
+    }
+  }
+
+  /**
+   * Resoumission d'un formulaire après rejet
+   */
+  async resoumettreDemande(req, res) {
+    try {
+      // Debug: Log what we received from frontend
+      logger.info('Données reçues pour resoumission:', {
+        body_keys: Object.keys(req.body),
+        telephone: req.body.telephone
+      });
+
+      // Validation des données du formulaire
+      const donneesValidees = adhesionSchema.parse(req.body);
+
+      // Trouver l'utilisateur existant par téléphone
+      const utilisateurExistant = await prisma.utilisateur.findFirst({
+        where: { 
+          telephone: donneesValidees.telephone,
+          statut: 'REJETE' // Seuls les utilisateurs rejetés peuvent resoummettre
+        },
+        select: {
+          id: true,
+          prenoms: true,
+          nom: true,
+          telephone: true,
+          statut: true,
+          numero_adhesion: true // Peut être null si jamais approuvé
+        }
+      });
+
+      if (!utilisateurExistant) {
+        return res.status(404).json({
+          error: 'Aucun formulaire rejeté trouvé pour ce numéro de téléphone',
+          code: 'FORMULAIRE_REJETE_NON_TROUVE',
+          message: 'Seuls les formulaires préalablement rejetés peuvent être resoumis'
+        });
+      }
+
+      logger.info(`Resoumission pour utilisateur existant ${utilisateurExistant.id} (${utilisateurExistant.prenoms} ${utilisateurExistant.nom})`);
+
+      // Mettre à jour l'utilisateur avec les nouvelles données
+      const utilisateurMisAJour = await prisma.utilisateur.update({
+        where: { id: utilisateurExistant.id },
+        data: {
+          // Mettre à jour toutes les données du formulaire
+          prenoms: donneesValidees.prenoms,
+          nom: donneesValidees.nom,
+          date_naissance: convertirDateFrancaise(donneesValidees.date_naissance),
+          lieu_naissance: donneesValidees.lieu_naissance,
+          adresse: donneesValidees.adresse,
+          profession: donneesValidees.profession,
+          ville_residence: donneesValidees.ville_residence,
+          date_entree_congo: convertirDateFrancaise(donneesValidees.date_entree_congo),
+          employeur_ecole: donneesValidees.employeur_ecole,
+          telephone: donneesValidees.telephone,
+          numero_carte_consulaire: donneesValidees.numero_carte_consulaire || null,
+          date_emission_piece: convertirDateFrancaise(donneesValidees.date_emission_piece) || null,
+          prenom_conjoint: donneesValidees.prenom_conjoint || null,
+          nom_conjoint: donneesValidees.nom_conjoint || null,
+          nombre_enfants: donneesValidees.nombre_enfants || 0,
+          selfie_photo_url: donneesValidees.selfie_photo_url || null,
+          signature_url: donneesValidees.signature_url || null,
+          commentaire: donneesValidees.commentaire || null,
+          
+          // Remettre en attente
+          statut: 'EN_ATTENTE',
+          modifie_le: new Date()
+        }
+      });
+
+      // Régénérer le PDF avec les nouvelles données (non-bloquant)
+      let urlPdfFormulaire = null;
+      try {
+        logger.info(`Régénération PDF pour resoumission utilisateur ${utilisateurMisAJour.id}`);
+        const pdfBuffer = await pdfGeneratorService.genererFicheAdhesion(
+          utilisateurMisAJour, 
+          donneesValidees.selfie_photo_url
+        );
+
+        urlPdfFormulaire = await cloudinaryService.uploadFormulaireAdhesion(
+          pdfBuffer,
+          utilisateurMisAJour.id,
+          `RESUBMIT_${utilisateurMisAJour.id}_${Date.now()}`
+        );
+        
+        // Mettre à jour le formulaire d'adhésion avec le nouveau PDF
+        await prisma.formulaireAdhesion.updateMany({
+          where: { 
+            id_utilisateur: utilisateurMisAJour.id,
+            est_version_active: true
+          },
+          data: {
+            url_image_formulaire: urlPdfFormulaire,
+            numero_version: { increment: 1 },
+            donnees_snapshot: {
+              prenoms: donneesValidees.prenoms,
+              nom: donneesValidees.nom,
+              telephone: donneesValidees.telephone,
+              date_resoumission: new Date().toISOString()
+            }
+          }
+        });
+        
+        logger.info(`PDF resoumission généré pour utilisateur ${utilisateurMisAJour.id}`);
+      } catch (pdfError) {
+        logger.warn(`Échec génération PDF resoumission pour utilisateur ${utilisateurMisAJour.id}`, {
+          error: pdfError.message
+        });
+        // La resoumission continue même sans PDF
+      }
+
+      // Créer journal d'audit pour resoumission
+      await prisma.journalAudit.create({
+        data: {
+          id_utilisateur: utilisateurMisAJour.id,
+          action: 'RESOUMISSION_APRES_REJET',
+          details: {
+            ancien_statut: 'REJETE',
+            nouveau_statut: 'EN_ATTENTE',
+            telephone: donneesValidees.telephone,
+            modification_donnees: true,
+            pdf_regenere: !!urlPdfFormulaire
+          },
+          adresse_ip: req.ip,
+          agent_utilisateur: req.get('User-Agent')
+        }
+      });
+
+      logger.info(`Resoumission réussie pour ${donneesValidees.prenoms} ${donneesValidees.nom} (ID: ${utilisateurMisAJour.id})`);
+
+      res.json({
+        message: 'Formulaire mis à jour et resoumis avec succès',
+        adhesion: {
+          id: utilisateurMisAJour.id,
+          nom_complet: `${donneesValidees.prenoms} ${donneesValidees.nom}`,
+          telephone: donneesValidees.telephone,
+          statut: utilisateurMisAJour.statut,
+          reference_temporaire: `RESUBMIT_${utilisateurMisAJour.id}`,
+          date_resoumission: utilisateurMisAJour.modifie_le,
+          url_fiche_adhesion: urlPdfFormulaire
+        },
+        prochaines_etapes: [
+          'Votre formulaire mis à jour est maintenant en cours d\'examen par le secrétariat',
+          'Les corrections apportées seront examinées par notre équipe',
+          'Vous recevrez une notification dès que votre demande sera traitée'
+        ],
+        message_important: 'Votre formulaire a été remis en file d\'attente pour une nouvelle évaluation'
+      });
+
+    } catch (error) {
+      if (error.name === 'ZodError') {
+        logger.warn('Erreur validation resoumission:', error.errors);
+        return res.status(400).json({
+          error: 'Données invalides pour la resoumission',
+          code: 'ERREUR_VALIDATION_RESOUMISSION',
+          details: error.errors.map(err => ({
+            champ: err.path.join('.'),
+            message: err.message
+          }))
+        });
+      }
+
+      logger.error('Erreur resoumission:', error);
+      res.status(500).json({
+        error: 'Erreur lors de la resoumission du formulaire',
+        code: 'ERREUR_RESOUMISSION',
+        message: 'Une erreur est survenue lors du traitement de votre resoumission'
+      });
+    }
+  }
+
+  /**
+   * Obtenir les détails du rejet d'un formulaire
+   */
+  async obtenirDetailsRejet(req, res) {
+    try {
+      const { telephone } = req.query;
+
+      if (!telephone) {
+        return res.status(400).json({
+          error: 'Numéro de téléphone requis',
+          code: 'TELEPHONE_REQUIS'
+        });
+      }
+
+      // Trouver l'utilisateur rejeté
+      const utilisateur = await prisma.utilisateur.findFirst({
+        where: { 
+          telephone: telephone,
+          statut: 'REJETE'
+        },
+        select: {
+          id: true,
+          prenoms: true,
+          nom: true,
+          telephone: true,
+          statut: true,
+          modifie_le: true
+        }
+      });
+
+      if (!utilisateur) {
+        return res.status(404).json({
+          error: 'Aucun formulaire rejeté trouvé pour ce numéro de téléphone',
+          code: 'REJET_NON_TROUVE'
+        });
+      }
+
+      // Récupérer les détails du rejet depuis l'audit log
+      const dernierRejet = await prisma.journalAudit.findFirst({
+        where: {
+          id_utilisateur: utilisateur.id,
+          action: 'FORMULAIRE_REJETE'
+        },
+        orderBy: {
+          cree_le: 'desc'
+        },
+        select: {
+          details: true,
+          cree_le: true
+        }
+      });
+
+      if (!dernierRejet) {
+        return res.status(404).json({
+          error: 'Détails du rejet non trouvés',
+          code: 'DETAILS_REJET_NON_TROUVES'
+        });
+      }
+
+      res.json({
+        message: 'Détails du rejet récupérés',
+        utilisateur: {
+          nom_complet: `${utilisateur.prenoms} ${utilisateur.nom}`,
+          telephone: utilisateur.telephone,
+          statut: utilisateur.statut
+        },
+        rejet: {
+          raison: dernierRejet.details.raison_rejet || 'Raison non spécifiée',
+          date_rejet: dernierRejet.cree_le,
+          peut_resoumis: true,
+          instructions: [
+            'Veuillez corriger les éléments mentionnés dans la raison du rejet',
+            'Assurez-vous que tous les documents sont clairs et lisibles',
+            'Vérifiez que toutes les informations sont correctes et complètes',
+            'Utilisez l\'endpoint de resoumission pour soumettre votre formulaire corrigé'
+          ]
+        }
+      });
+
+    } catch (error) {
+      logger.error('Erreur récupération détails rejet:', error);
+      res.status(500).json({
+        error: 'Erreur lors de la récupération des détails du rejet',
+        code: 'ERREUR_DETAILS_REJET'
       });
     }
   }

@@ -3,6 +3,8 @@ const logger = require('../config/logger');
 const serviceAuth = require('../services/auth.service');
 const emailService = require('../services/email.service');
 const ErrorHandler = require('../utils/errorHandler');
+const pdfGeneratorService = require('../services/pdf-generator.service');
+const cloudinaryService = require('../services/cloudinary.service');
 const { creerIdentifiantsSchema, creerNouveauMembreSchema } = require('../schemas/auth.schema');
 
 class ControleurSecretaire {
@@ -112,6 +114,7 @@ class ControleurSecretaire {
         membresFormulaireSoumis,
         membresApprouves,
         membresEnAttente,
+        membresRejetes,
         membresConnectesRecemment
       ] = await Promise.all([
         prisma.utilisateur.count({ where: filtreNonAdmin }),
@@ -139,6 +142,12 @@ class ControleurSecretaire {
             statut: 'EN_ATTENTE' 
           } 
         }),
+        prisma.utilisateur.count({ 
+          where: { 
+            ...filtreNonAdmin,
+            statut: 'REJETE' 
+          } 
+        }),
         prisma.utilisateur.count({
           where: {
             ...filtreNonAdmin,
@@ -158,6 +167,7 @@ class ControleurSecretaire {
         membres_formulaire_soumis: membresFormulaireSoumis || 0,
         membres_approuves: membresApprouves || 0,
         membres_en_attente: membresEnAttente || 0,
+        membres_rejetes: membresRejetes || 0,
         membres_connectes_recemment: membresConnectesRecemment || 0,
         // Calculs dérivés
         membres_avec_identifiants_sans_formulaire: membresAvecIdentifiantsSansFormulaire,
@@ -177,6 +187,7 @@ class ControleurSecretaire {
         membres_avec_identifiants: 0,
         membres_formulaire_soumis: 0,
         membres_approuves: 0,
+        membres_rejetes: 0,
         membres_en_attente: 0,
         membres_connectes_recemment: 0,
         membres_avec_identifiants_sans_formulaire: 0,
@@ -607,7 +618,9 @@ class ControleurSecretaire {
           email: true, // Pour notifications email
           a_soumis_formulaire: true, 
           statut: true,
-          code_formulaire: true
+          code_formulaire: true,
+          selfie_photo_url: true, // Pour la régénération du PDF
+          signature_url: true // Pour inclure la signature du membre
         }
       });
 
@@ -635,6 +648,12 @@ class ControleurSecretaire {
         codeFormulaire = `N°${String(nombreApprouves + 1).padStart(3, '0')}/AGCO/M/${anneeCourante}`;
       }
 
+      // Générer le numéro d'adhésion lors de l'approbation
+      const compteurApprouves = await prisma.utilisateur.count({
+        where: { statut: 'APPROUVE', role: 'MEMBRE' }
+      });
+      const numeroAdhesion = `N°${String(compteurApprouves + 1).padStart(3, '0')}/AGCO/M/${new Date().getFullYear()}`;
+
       // Récupérer la signature active du président
       const signaturePresident = await prisma.signature.findFirst({
         where: { est_active: true },
@@ -646,6 +665,7 @@ class ControleurSecretaire {
         where: { id: id_utilisateur },
         data: {
           statut: 'APPROUVE',
+          numero_adhesion: numeroAdhesion, // Attribution du numéro lors de l'approbation
           code_formulaire: codeFormulaire,
           carte_emise_le: new Date(), // Date d'émission de la carte
           modifie_le: new Date()
@@ -659,6 +679,7 @@ class ControleurSecretaire {
           action: 'FORMULAIRE_APPROUVE_AVEC_SIGNATURE',
           details: {
             ancien_statut: utilisateur.statut,
+            numero_adhesion: numeroAdhesion,
             code_formulaire: codeFormulaire,
             commentaire: commentaire || null,
             signature_president_id: signaturePresident?.id || null,
@@ -671,6 +692,49 @@ class ControleurSecretaire {
       });
 
       logger.info(`Formulaire approuvé avec signature pour utilisateur ${id_utilisateur} par secrétaire ${idSecretaire}`);
+
+      // Régénérer le PDF avec la signature du président (non-bloquant)
+      let nouvelUrlPdf = null;
+      try {
+        logger.info(`Régénération PDF avec signature président pour utilisateur ${id_utilisateur}`);
+        // Combiner les données pour le PDF (données mises à jour + URLs originales)
+        const donneesCompletesUser = {
+          ...utilisateurMisAJour,
+          signature_url: utilisateur.signature_url // Signature du membre
+        };
+        
+        const pdfBuffer = await pdfGeneratorService.genererFicheAdhesion(
+          donneesCompletesUser, 
+          utilisateur.selfie_photo_url,
+          signaturePresident?.url_signature // Inclure la signature du président
+        );
+        
+        nouvelUrlPdf = await cloudinaryService.uploadFormulaireAdhesion(
+          pdfBuffer,
+          utilisateurMisAJour.id,
+          numeroAdhesion
+        );
+        
+        // Mettre à jour le formulaire d'adhésion avec le nouveau PDF
+        await prisma.formulaireAdhesion.updateMany({
+          where: { 
+            id_utilisateur: id_utilisateur,
+            est_version_active: true
+          },
+          data: {
+            url_image_formulaire: nouvelUrlPdf,
+            est_version_active: true
+          }
+        });
+        
+        logger.info(`PDF avec signature président généré et uploadé pour utilisateur ${id_utilisateur}`);
+      } catch (pdfError) {
+        logger.warn(`Échec génération PDF avec signature pour utilisateur ${id_utilisateur}`, {
+          error: pdfError.message,
+          utilisateur_id: id_utilisateur
+        });
+        // L'approbation continue même sans PDF
+      }
 
       // Envoyer notification email si l'utilisateur a un email
       let notificationEmail = { success: false, error: 'Aucun email' };
@@ -698,11 +762,13 @@ class ControleurSecretaire {
           id: utilisateurMisAJour.id,
           nom_complet: `${utilisateurMisAJour.prenoms} ${utilisateurMisAJour.nom}`,
           statut: utilisateurMisAJour.statut,
+          numero_adhesion: utilisateurMisAJour.numero_adhesion,
           code_formulaire: utilisateurMisAJour.code_formulaire,
           carte_emise_le: utilisateurMisAJour.carte_emise_le
         },
         actions_effectuees: [
           '✅ Formulaire approuvé',
+          `🔢 Numéro d'adhésion attribué: ${numeroAdhesion}`,
           '🏷️ Code de formulaire généré',
           '✍️ Signature du président ajoutée',
           '🎫 Carte d\'adhésion émise',
@@ -736,7 +802,7 @@ class ControleurSecretaire {
    */
   async rejeterFormulaire(req, res) {
     try {
-      const { id_utilisateur, raison } = req.body;
+      const { id_utilisateur, raison, categorie_rejet, suggestions } = req.body;
       const idSecretaire = req.utilisateur.id;
 
       if (!id_utilisateur || !raison) {
@@ -745,6 +811,20 @@ class ControleurSecretaire {
           code: 'DONNEES_MANQUANTES'
         });
       }
+
+      // Catégories de rejet prédéfinies
+      const categoriesValides = [
+        'DOCUMENTS_ILLISIBLES',
+        'INFORMATIONS_INCORRECTES', 
+        'DOCUMENTS_MANQUANTS',
+        'PHOTO_INADEQUATE',
+        'SIGNATURE_MANQUANTE',
+        'AUTRE'
+      ];
+
+      const categorieRejet = categorie_rejet && categoriesValides.includes(categorie_rejet) 
+        ? categorie_rejet 
+        : 'AUTRE';
 
       const utilisateur = await prisma.utilisateur.findUnique({
         where: { id: id_utilisateur },
@@ -782,7 +862,10 @@ class ControleurSecretaire {
           details: {
             ancien_statut: utilisateur.statut,
             raison_rejet: raison,
-            traite_par: idSecretaire
+            categorie_rejet: categorieRejet,
+            suggestions: suggestions || null,
+            traite_par: idSecretaire,
+            date_rejet: new Date().toISOString()
           },
           adresse_ip: req.ip,
           agent_utilisateur: req.get('User-Agent')
@@ -795,7 +878,15 @@ class ControleurSecretaire {
       let notificationEmail = { success: false, error: 'Aucun email' };
       if (utilisateur.email) {
         try {
-          notificationEmail = await emailService.notifierFormulaireRejete(utilisateur, raison);
+          // Créer l'objet de données de rejet structuré pour l'email
+          const donneesRejet = {
+            raison_principale: raison,
+            categorie: categorieRejet,
+            suggestions: suggestions || [],
+            date_rejet: new Date().toLocaleDateString('fr-FR')
+          };
+          
+          notificationEmail = await emailService.notifierFormulaireRejete(utilisateur, donneesRejet);
           
           if (notificationEmail.success) {
             logger.info(`Email de rejet envoyé à ${utilisateur.email} pour utilisateur ${id_utilisateur}`);
@@ -814,10 +905,17 @@ class ControleurSecretaire {
           nom_complet: `${utilisateurMisAJour.prenoms} ${utilisateurMisAJour.nom}`,
           statut: utilisateurMisAJour.statut
         },
-        raison: raison,
+        rejet: {
+          raison_principale: raison,
+          categorie: categorieRejet,
+          suggestions: suggestions || [],
+          date_rejet: new Date().toLocaleDateString('fr-FR')
+        },
         actions_effectuees: [
-          '❌ Formulaire rejeté',
-          ...(notificationEmail.success ? ['📧 Email d\'information envoyé au membre'] : [])
+          '❌ Formulaire rejeté avec détails structurés',
+          `📂 Catégorie: ${categorieRejet}`,
+          ...(suggestions && suggestions.length > 0 ? [`💡 ${suggestions.length} suggestion(s) fournie(s)`] : []),
+          ...(notificationEmail.success ? ['📧 Email détaillé envoyé au membre'] : [])
         ],
         notification_email: {
           envoye: notificationEmail.success,
