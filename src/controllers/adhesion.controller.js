@@ -28,22 +28,23 @@ class AdhesionController {
           telephone: req.body.telephone,
           date_naissance: req.body.date_naissance
         },
+        has_files: !!req.files,
         files_keys: req.files ? Object.keys(req.files) : 'no files',
-        content_type: req.get('content-type')
+        files_count: req.files ? Object.keys(req.files).length : 0,
+        file_details: req.files ? Object.keys(req.files).map(key => ({
+          field: key,
+          count: Array.isArray(req.files[key]) ? req.files[key].length : 1,
+          type: req.files[key] ? (Array.isArray(req.files[key]) ? req.files[key][0]?.mimetype : req.files[key].mimetype) : 'unknown'
+        })) : [],
+        content_type: req.get('content-type'),
+        method: req.method
       });
 
       // Validation des données du formulaire
       const donneesValidees = adhesionSchema.parse(req.body);
 
-      // Validation des fichiers téléchargés
-      const validationFichiers = validerFichiersAdhesion(req.files);
-      if (!validationFichiers.valid) {
-        return res.status(400).json({
-          error: 'Fichiers invalides',
-          code: 'FICHIERS_INVALIDES',
-          details: validationFichiers.errors
-        });
-      }
+      // Note: Les photos sont maintenant des URLs Cloudinary, plus de validation de fichiers
+      // La validation des URLs se fait dans le schema Zod (selfie_photo_url, signature_url)
 
       // Vérifier les doublons numéro de carte consulaire (si fourni)
       if (donneesValidees.numero_carte_consulaire) {
@@ -570,11 +571,17 @@ class AdhesionController {
             example: "Demande urgente"
           }
         },
-        files_required: {
-          photo_profil: {
-            description: "Photo de profil du demandeur",
-            format: "JPEG ou PNG",
-            max_size: "5MB"
+        note_importante: "Les photos doivent être uploadées sur Cloudinary par le frontend et les URLs envoyées dans les champs appropriés",
+        photos_as_urls: {
+          selfie_photo_url: {
+            description: "URL Cloudinary de la photo selfie du demandeur (optionnel)",
+            format: "URL valide",
+            example: "https://res.cloudinary.com/your-cloud/image/upload/v123456789/selfie.jpg"
+          },
+          signature_url: {
+            description: "URL Cloudinary de la signature du demandeur (optionnel)", 
+            format: "URL valide",
+            example: "https://res.cloudinary.com/your-cloud/image/upload/v123456789/signature.png"
           }
         },
         example_payload: {
@@ -593,8 +600,8 @@ class AdhesionController {
           prenom_conjoint: "",
           nom_conjoint: "",
           nombre_enfants: 0,
-          selfie_photo_url: "",
-          signature_url: "",
+          selfie_photo_url: "https://res.cloudinary.com/your-cloud/image/upload/v123456789/selfie.jpg",
+          signature_url: "https://res.cloudinary.com/your-cloud/image/upload/v123456789/signature.png",
           commentaire: ""
         }
       };

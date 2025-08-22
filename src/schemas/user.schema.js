@@ -172,13 +172,19 @@ const statusUpdateSchema = z.object({
 const validerFichiersAdhesion = (files) => {
   const errors = [];
   
+  // Vérifier que files existe
+  if (!files) {
+    errors.push('Aucun fichier reçu - Photo de profil requise');
+    return { valid: false, errors };
+  }
+  
   // Seulement la photo de profil est requise maintenant
-  if (!files.selfie_photo_url) {
+  if (!files.photo_profil) {
     errors.push('Photo de profil requise');
     return { valid: false, errors };
   }
 
-  const champsFile = ['selfie_photo_url']; // Seulement photo de profil
+  const champsFile = ['photo_profil']; // Seulement photo de profil
   
   // Photo de pièce optionnelle pour l'instant (commentée)
   // if (files.photo_piece) {
