@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Quick Setup:**
 ```bash
 npm run setup          # Automated environment setup
-cp .env.template .env   # Copy and edit environment variables
+cp .env.example .env    # Copy and edit environment variables
 ```
 
 **Development:**

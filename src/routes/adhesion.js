@@ -150,6 +150,23 @@ router.get('/preview-template', adhesionController.previewTemplate);
 
 /**
  * @swagger
+ * /api/adhesion/schema:
+ *   get:
+ *     summary: Schéma du formulaire d'adhésion
+ *     description: Obtenir les champs requis et leurs formats pour le formulaire d'adhésion (développement)
+ *     tags: [Development]
+ *     responses:
+ *       200:
+ *         description: Schéma des données du formulaire
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ */
+router.get('/schema', adhesionController.getAdhesionSchema);
+
+/**
+ * @swagger
  * /api/adhesion/test-pdf:
  *   get:
  *     summary: Générer PDF de test

@@ -19,6 +19,19 @@ class AdhesionController {
    */
   async soumettreDemande(req, res) {
     try {
+      // Debug: Log what we received from frontend
+      logger.info('Données reçues du frontend:', {
+        body_keys: Object.keys(req.body),
+        body_sample: {
+          prenoms: req.body.prenoms,
+          nom: req.body.nom,
+          telephone: req.body.telephone,
+          date_naissance: req.body.date_naissance
+        },
+        files_keys: req.files ? Object.keys(req.files) : 'no files',
+        content_type: req.get('content-type')
+      });
+
       // Validation des données du formulaire
       const donneesValidees = adhesionSchema.parse(req.body);
 
@@ -429,6 +442,173 @@ class AdhesionController {
         error: 'Erreur lors de la génération du PDF de test',
         code: 'ERREUR_PDF_TEST',
         details: error.message
+      });
+    }
+  }
+
+  /**
+   * Obtenir le schéma des données attendues (utile pour déboguer frontend)
+   */
+  async getAdhesionSchema(req, res) {
+    try {
+      const schema = {
+        required_fields: {
+          prenoms: {
+            type: "string",
+            min_length: 2,
+            max_length: 100,
+            description: "Prénoms du demandeur",
+            example: "Jean Claude"
+          },
+          nom: {
+            type: "string", 
+            min_length: 2,
+            max_length: 50,
+            description: "Nom de famille du demandeur",
+            example: "MBONGO"
+          },
+          date_naissance: {
+            type: "string",
+            format: "DD-MM-YYYY",
+            description: "Date de naissance (18-100 ans)",
+            example: "15-03-1990"
+          },
+          lieu_naissance: {
+            type: "string",
+            min_length: 2,
+            max_length: 100,
+            description: "Lieu de naissance",
+            example: "Brazzaville"
+          },
+          adresse: {
+            type: "string",
+            min_length: 5,
+            max_length: 200,
+            description: "Adresse de résidence",
+            example: "123 Avenue de la République"
+          },
+          profession: {
+            type: "string",
+            min_length: 2,
+            max_length: 100,
+            description: "Profession du demandeur",
+            example: "Ingénieur"
+          },
+          ville_residence: {
+            type: "string",
+            min_length: 2,
+            max_length: 100,
+            description: "Ville de résidence actuelle",
+            example: "Pointe-Noire"
+          },
+          date_entree_congo: {
+            type: "string",
+            format: "DD-MM-YYYY",
+            description: "Date d'entrée au Congo (ne peut être future)",
+            example: "10-01-2020"
+          },
+          employeur_ecole: {
+            type: "string",
+            min_length: 2,
+            max_length: 150,
+            description: "Nom de l'employeur ou école",
+            example: "Université Marien Ngouabi"
+          },
+          telephone: {
+            type: "string",
+            format: "International phone number",
+            description: "Numéro de téléphone (Congo +242, Gabon +241, France +33)",
+            example: "+242066123456"
+          }
+        },
+        optional_fields: {
+          numero_carte_consulaire: {
+            type: "string",
+            format: "Alphanumeric uppercase",
+            description: "Numéro de carte consulaire (optionnel)",
+            example: "GAB123456"
+          },
+          date_emission_piece: {
+            type: "string",
+            format: "DD-MM-YYYY",
+            description: "Date d'émission de la pièce (optionnel)",
+            example: "15-01-2025"
+          },
+          prenom_conjoint: {
+            type: "string",
+            description: "Prénom du conjoint (optionnel)",
+            example: "Marie"
+          },
+          nom_conjoint: {
+            type: "string", 
+            description: "Nom du conjoint (optionnel)",
+            example: "MBONGO"
+          },
+          nombre_enfants: {
+            type: "number",
+            min: 0,
+            max: 20,
+            description: "Nombre d'enfants (optionnel)",
+            example: 2
+          },
+          selfie_photo_url: {
+            type: "string",
+            format: "URL",
+            description: "URL Cloudinary de la photo selfie (optionnel)",
+            example: "https://res.cloudinary.com/..."
+          },
+          signature_url: {
+            type: "string",
+            format: "URL", 
+            description: "URL Cloudinary de la signature (optionnel)",
+            example: "https://res.cloudinary.com/..."
+          },
+          commentaire: {
+            type: "string",
+            max_length: 100,
+            description: "Commentaire libre (optionnel)",
+            example: "Demande urgente"
+          }
+        },
+        files_required: {
+          photo_profil: {
+            description: "Photo de profil du demandeur",
+            format: "JPEG ou PNG",
+            max_size: "5MB"
+          }
+        },
+        example_payload: {
+          prenoms: "Jean Claude",
+          nom: "MBONGO", 
+          date_naissance: "15-03-1990",
+          lieu_naissance: "Brazzaville",
+          adresse: "123 Avenue de la République",
+          profession: "Ingénieur",
+          ville_residence: "Pointe-Noire",
+          date_entree_congo: "10-01-2020",
+          employeur_ecole: "Université Marien Ngouabi",
+          telephone: "+242066123456",
+          numero_carte_consulaire: "",
+          date_emission_piece: "",
+          prenom_conjoint: "",
+          nom_conjoint: "",
+          nombre_enfants: 0,
+          selfie_photo_url: "",
+          signature_url: "",
+          commentaire: ""
+        }
+      };
+
+      res.json({
+        message: "Schéma du formulaire d'adhésion",
+        schema: schema
+      });
+
+    } catch (error) {
+      logger.error('Erreur récupération schéma:', error);
+      res.status(500).json({
+        error: 'Erreur lors de la récupération du schéma',
+        code: 'ERREUR_SCHEMA'
       });
     }
   }
