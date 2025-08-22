@@ -173,7 +173,7 @@ const validerFichiersAdhesion = (files) => {
   const errors = [];
   
   // Seulement la photo de profil est requise maintenant
-  if (!files.photo_profil) {
+  if (!files.selfie_photo_url) {
     errors.push('Photo de profil requise');
     return { valid: false, errors };
   }
