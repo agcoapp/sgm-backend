@@ -54,7 +54,7 @@ router.get('/tableau-bord',
   authentifierJWT, 
   verifierRoleSecretaire, 
   generalLimiter,
-  controleurSecretaire.obtenirTableauBord
+  (req, res, next) => controleurSecretaire.obtenirTableauBord(req, res, next)
 );
 
 /**
