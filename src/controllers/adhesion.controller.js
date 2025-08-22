@@ -145,7 +145,9 @@ class AdhesionController {
       // Créer la première version du formulaire d'adhésion
       const formulaireAdhesion = await prisma.formulaireAdhesion.create({
         data: {
-          id_utilisateur: nouvelUtilisateur.id,
+          utilisateur: {
+            connect: { id: nouvelUtilisateur.id }
+          },
           numero_version: 1,
           url_image_formulaire: urlPdfFormulaire,
           donnees_snapshot: snapshotDonnees,
