@@ -126,48 +126,40 @@ app.use('*', (req, res) => {
   });
   
   res.status(404).json({
-    error: 'Route non trouvée',
-    code: 'NOT_FOUND',
+    type: 'not_found_error',
+    message: 'Route non trouvée',
+    code: 'ROUTE_NOT_FOUND',
+    timestamp: new Date().toISOString(),
+    context: 'route_resolution',
     path: req.originalUrl,
     method: req.method,
-    available_endpoints: [
-      'GET /api',
-      'GET /api/health',
-      'POST /api/register',
-      'GET /api/members',
-      'PATCH /api/members/:id',
-      'POST /api/signatures',
-      'GET /api/photos/:id',
-      'GET /api/verify/:id',
-      'GET /api/profile'
-    ]
+    suggestions: [
+      'Vérifiez l\'URL et la méthode HTTP',
+      'Consultez la documentation API à /api',
+      'Vérifiez que l\'endpoint existe et est correctement orthographié'
+    ],
+    available_endpoints: {
+      health: 'GET /api/health',
+      info: 'GET /api',
+      auth: 'POST /api/auth/connexion',
+      secretary: 'GET /api/secretaire/tableau-bord',
+      member: 'GET /api/membre/formulaire-adhesion',
+      adhesion: 'POST /api/adhesion/soumettre'
+    }
   });
 });
 
 // Global error handler
-app.use((error, req, res, next) => {
-  logger.error('API Error:', {
-    error: error.message,
-    stack: error.stack,
-    path: req.path,
-    method: req.method,
-    ip: req.ip,
-    userAgent: req.get('User-Agent')
-  });
+const ErrorHandler = require('./utils/errorHandler');
 
-  // Don't leak error details in production
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  
-  res.status(error.status || 500).json({
-    error: 'Erreur serveur interne',
-    code: 'INTERNAL_SERVER_ERROR',
-    ...(isDevelopment && {
-      details: error.message,
-      stack: error.stack
-    }),
-    timestamp: new Date().toISOString(),
-    path: req.path
-  });
+app.use((error, req, res, next) => {
+  const context = {
+    operation: `${req.method} ${req.path}`,
+    user_id: req.utilisateur?.id || req.user?.id || 'anonymous',
+    request_id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  };
+
+  return ErrorHandler.handleError(error, res, context);
 });
 
 // Graceful shutdown handling

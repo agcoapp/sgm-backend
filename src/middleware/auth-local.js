@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/database');
 const logger = require('../config/logger');
+const ErrorHandler = require('../utils/errorHandler');
 
 /**
  * Middleware d'authentification JWT locale
@@ -10,10 +11,14 @@ const authentifierJWT = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        erreur: 'Token d\'authentification requis',
-        code: 'TOKEN_MANQUANT'
-      });
+      const authError = new Error('Token d\'authentification requis');
+      authError.code = 'TOKEN_MANQUANT';
+      authError.status = 401;
+      const context = {
+        operation: 'token_validation',
+        user_id: 'anonymous'
+      };
+      return ErrorHandler.formatAuthError(authError, res, context);
     }
 
     const token = authHeader.substring(7); // Enlever 'Bearer '
@@ -37,18 +42,26 @@ const authentifierJWT = async (req, res, next) => {
     });
 
     if (!utilisateur) {
-      return res.status(401).json({
-        erreur: 'Utilisateur non trouvé',
-        code: 'UTILISATEUR_INVALIDE'
-      });
+      const authError = new Error('Utilisateur non trouvé');
+      authError.code = 'UTILISATEUR_INVALIDE';
+      authError.status = 401;
+      const context = {
+        operation: 'user_validation',
+        user_id: payload.id || 'unknown'
+      };
+      return ErrorHandler.formatAuthError(authError, res, context);
     }
 
     // Vérifier que l'utilisateur est actif
     if (!utilisateur.est_actif) {
-      return res.status(401).json({
-        erreur: 'Compte désactivé',
-        code: 'COMPTE_DESACTIVE'
-      });
+      const authError = new Error('Compte désactivé');
+      authError.code = 'COMPTE_DESACTIVE';
+      authError.status = 401;
+      const context = {
+        operation: 'account_status_check',
+        user_id: utilisateur.id
+      };
+      return ErrorHandler.formatAuthError(authError, res, context);
     }
 
     // Ajouter les informations utilisateur à la requête
@@ -58,25 +71,26 @@ const authentifierJWT = async (req, res, next) => {
     next();
 
   } catch (error) {
+    const context = {
+      operation: 'jwt_verification',
+      user_id: 'unknown'
+    };
+
     if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        erreur: 'Token invalide',
-        code: 'TOKEN_INVALIDE'
-      });
+      const authError = new Error('Token invalide');
+      authError.code = 'TOKEN_INVALIDE';
+      authError.status = 401;
+      return ErrorHandler.formatAuthError(authError, res, context);
     }
 
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        erreur: 'Token expiré',
-        code: 'TOKEN_EXPIRE'
-      });
+      const authError = new Error('Token expiré');
+      authError.code = 'TOKEN_EXPIRE';
+      authError.status = 401;
+      return ErrorHandler.formatAuthError(authError, res, context);
     }
 
-    logger.error('Erreur authentification JWT:', error);
-    res.status(500).json({
-      erreur: 'Erreur d\'authentification',
-      code: 'ERREUR_AUTH'
-    });
+    return ErrorHandler.handleError(error, res, context);
   }
 };
 
@@ -86,19 +100,24 @@ const authentifierJWT = async (req, res, next) => {
 const verifierRole = (...rolesAutorises) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({
-        erreur: 'Authentification requise',
-        code: 'AUTH_REQUISE'
-      });
+      const authError = new Error('Authentification requise');
+      authError.code = 'AUTH_REQUISE';
+      authError.status = 401;
+      const context = {
+        operation: 'role_verification',
+        user_id: 'anonymous'
+      };
+      return ErrorHandler.formatAuthError(authError, res, context);
     }
 
     if (!rolesAutorises.includes(req.user.role)) {
-      return res.status(403).json({
-        erreur: 'Permissions insuffisantes',
-        code: 'PERMISSIONS_INSUFFISANTES',
-        role_requis: rolesAutorises,
-        role_actuel: req.user.role
-      });
+      const context = {
+        operation: 'role_verification',
+        user_id: req.user.id,
+        required_role: rolesAutorises.join(', '),
+        current_role: req.user.role
+      };
+      return ErrorHandler.formatAuthorizationError(new Error('Permissions insuffisantes'), res, context);
     }
 
     next();

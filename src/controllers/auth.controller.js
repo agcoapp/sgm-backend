@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const serviceAuth = require('../services/auth.service');
 const prisma = require('../config/database');
 const logger = require('../config/logger');
+const ErrorHandler = require('../utils/errorHandler');
 const { changerMotPasseSchema, connexionSchema, recuperationMotPasseSchema, reinitialiserMotPasseSchema } = require('../schemas/auth.schema');
 
 class AuthController {
@@ -21,10 +22,14 @@ class AuthController {
       );
 
       if (!resultat.succes) {
-        return res.status(401).json({
-          erreur: resultat.message,
-          code: 'AUTHENTIFICATION_ECHOUEE'
-        });
+        const authError = new Error(resultat.message);
+        authError.code = 'AUTHENTIFICATION_ECHOUEE';
+        authError.status = 401;
+        const context = {
+          operation: 'user_login',
+          user_id: req.body?.nom_utilisateur || 'unknown'
+        };
+        return ErrorHandler.formatAuthError(authError, res, context);
       }
 
       res.json({
@@ -34,19 +39,11 @@ class AuthController {
       });
 
     } catch (error) {
-      if (error.name === 'ZodError') {
-        return res.status(400).json({
-          erreur: 'Données invalides',
-          code: 'ERREUR_VALIDATION',
-          details: error.errors
-        });
-      }
-
-      logger.error('Erreur connexion:', error);
-      res.status(500).json({
-        erreur: 'Erreur lors de la connexion',
-        code: 'ERREUR_CONNEXION'
-      });
+      const context = {
+        operation: 'user_login',
+        user_id: req.body?.nom_utilisateur || 'unknown'
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 

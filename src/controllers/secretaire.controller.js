@@ -2,6 +2,7 @@ const prisma = require('../config/database');
 const logger = require('../config/logger');
 const serviceAuth = require('../services/auth.service');
 const emailService = require('../services/email.service');
+const ErrorHandler = require('../utils/errorHandler');
 const { creerIdentifiantsSchema, creerNouveauMembreSchema } = require('../schemas/auth.schema');
 
 class ControleurSecretaire {
@@ -87,17 +88,11 @@ class ControleurSecretaire {
       });
 
     } catch (error) {
-      logger.error('Erreur tableau de bord secrétaire:', {
-        message: error.message,
-        stack: error.stack,
-        code: error.code
-      });
-      res.status(500).json({
-        erreur: 'Erreur lors de la récupération du tableau de bord',
-        code: 'ERREUR_TABLEAU_BORD',
-        details: error.message,
-        field: error.meta?.field_name || 'unknown'
-      });
+      const context = {
+        operation: 'secretary_dashboard',
+        user_id: req.utilisateur?.id
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 
@@ -231,19 +226,11 @@ class ControleurSecretaire {
       });
 
     } catch (error) {
-      if (error.name === 'ZodError') {
-        return res.status(400).json({
-          erreur: 'Données invalides',
-          code: 'ERREUR_VALIDATION',
-          details: error.errors
-        });
-      }
-
-      logger.error('Erreur création nouveau membre:', error);
-      res.status(500).json({
-        erreur: 'Erreur lors de la création du nouveau membre',
-        code: 'ERREUR_CREATION_NOUVEAU_MEMBRE'
-      });
+      const context = {
+        operation: 'create_new_member',
+        user_id: req.utilisateur?.id
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 
