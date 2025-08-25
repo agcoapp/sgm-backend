@@ -594,6 +594,148 @@ class ControleurSecretaire {
   }
 
   /**
+   * Obtenir les détails d'un formulaire d'adhésion spécifique pour révision
+   */
+  async obtenirFormulaireUtilisateur(req, res) {
+    try {
+      const { id_utilisateur } = req.params;
+
+      if (!id_utilisateur) {
+        return res.status(400).json({
+          erreur: 'ID utilisateur requis',
+          code: 'ID_UTILISATEUR_MANQUANT'
+        });
+      }
+
+      // Récupérer l'utilisateur avec son formulaire d'adhésion
+      const utilisateur = await prisma.utilisateur.findUnique({
+        where: { id: parseInt(id_utilisateur) },
+        include: {
+          formulaires_adhesion: {
+            where: { est_version_active: true },
+            orderBy: { numero_version: 'desc' },
+            take: 1
+          }
+        }
+      });
+
+      if (!utilisateur) {
+        return res.status(404).json({
+          erreur: 'Utilisateur non trouvé',
+          code: 'UTILISATEUR_NON_TROUVE'
+        });
+      }
+
+      if (!utilisateur.a_soumis_formulaire) {
+        return res.status(404).json({
+          erreur: 'Aucun formulaire soumis par cet utilisateur',
+          code: 'FORMULAIRE_NON_SOUMIS'
+        });
+      }
+
+      const formulaireActif = utilisateur.formulaires_adhesion[0];
+
+      // Récupérer les informations d'audit pour historique des actions
+      const historiqueActions = await prisma.journalAudit.findMany({
+        where: { id_utilisateur: parseInt(id_utilisateur) },
+        orderBy: { cree_le: 'desc' },
+        take: 10,
+        select: {
+          action: true,
+          details: true,
+          cree_le: true
+        }
+      });
+
+      // Calculer statistiques pour contexte
+      const statistiques = {
+        nombre_total_soumissions: await prisma.utilisateur.count({
+          where: { a_soumis_formulaire: true }
+        }),
+        nombre_en_attente: await prisma.utilisateur.count({
+          where: { statut: 'EN_ATTENTE' }
+        }),
+        nombre_approuves: await prisma.utilisateur.count({
+          where: { statut: 'APPROUVE' }
+        }),
+        nombre_rejetes: await prisma.utilisateur.count({
+          where: { statut: 'REJETE' }
+        })
+      };
+
+      logger.info(`Formulaire consulté par secrétaire pour utilisateur ${id_utilisateur}`);
+
+      res.json({
+        message: 'Détails du formulaire d\'adhésion récupérés',
+        utilisateur: {
+          id: utilisateur.id,
+          prenoms: utilisateur.prenoms,
+          nom: utilisateur.nom,
+          date_naissance: utilisateur.date_naissance,
+          lieu_naissance: utilisateur.lieu_naissance,
+          adresse: utilisateur.adresse,
+          profession: utilisateur.profession,
+          ville_residence: utilisateur.ville_residence,
+          date_entree_congo: utilisateur.date_entree_congo,
+          employeur_ecole: utilisateur.employeur_ecole,
+          telephone: utilisateur.telephone,
+          numero_carte_consulaire: utilisateur.numero_carte_consulaire,
+          date_emission_piece: utilisateur.date_emission_piece,
+          prenom_conjoint: utilisateur.prenom_conjoint,
+          nom_conjoint: utilisateur.nom_conjoint,
+          nombre_enfants: utilisateur.nombre_enfants,
+          selfie_photo_url: utilisateur.selfie_photo_url,
+          signature_url: utilisateur.signature_url,
+          commentaire: utilisateur.commentaire,
+          email: utilisateur.email,
+          statut: utilisateur.statut,
+          numero_adhesion: utilisateur.numero_adhesion,
+          code_formulaire: utilisateur.code_formulaire,
+          raison_rejet: utilisateur.raison_rejet,
+          rejete_le: utilisateur.rejete_le,
+          cree_le: utilisateur.cree_le,
+          modifie_le: utilisateur.modifie_le
+        },
+        formulaire: formulaireActif ? {
+          id: formulaireActif.id,
+          numero_version: formulaireActif.numero_version,
+          url_image_formulaire: formulaireActif.url_image_formulaire,
+          donnees_snapshot: formulaireActif.donnees_snapshot,
+          cree_le: formulaireActif.cree_le
+        } : null,
+        historique_actions: historiqueActions.map(action => ({
+          action: action.action,
+          details: action.details,
+          date: action.cree_le
+        })),
+        contexte: {
+          peut_approuver: utilisateur.statut === 'EN_ATTENTE',
+          peut_rejeter: utilisateur.statut === 'EN_ATTENTE',
+          deja_traite: ['APPROUVE', 'REJETE'].includes(utilisateur.statut),
+          statut_actuel: utilisateur.statut
+        },
+        statistiques,
+        actions_possibles: utilisateur.statut === 'EN_ATTENTE' ? [
+          'Approuver le formulaire',
+          'Rejeter le formulaire avec raison',
+          'Demander des clarifications'
+        ] : [
+          'Consulter les détails du traitement',
+          'Voir l\'historique des actions'
+        ]
+      });
+
+    } catch (error) {
+      logger.error('Erreur consultation formulaire utilisateur:', error);
+      res.status(500).json({
+        erreur: 'Erreur lors de la récupération du formulaire',
+        code: 'ERREUR_CONSULTATION_FORMULAIRE',
+        message: 'Une erreur est survenue lors de la récupération des détails'
+      });
+    }
+  }
+
+  /**
    * Approuver un formulaire d'adhésion (avec signature du président automatique)
    */
   async approuverFormulaire(req, res) {

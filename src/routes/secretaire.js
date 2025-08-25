@@ -324,6 +324,153 @@ router.get('/formulaires',
 
 /**
  * @swagger
+ * /api/secretaire/formulaire/{id_utilisateur}:
+ *   get:
+ *     summary: Obtenir les détails d'un formulaire d'adhésion spécifique
+ *     description: |
+ *       Permet au secrétaire de consulter tous les détails d'un formulaire
+ *       d'adhésion avant de prendre une décision d'approbation ou de rejet.
+ *       Inclut l'historique des actions et les statistiques contextuelles.
+ *     tags: [Forms]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id_utilisateur
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de l'utilisateur dont on veut consulter le formulaire
+ *         example: 123
+ *     responses:
+ *       200:
+ *         description: Détails du formulaire récupérés avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Détails du formulaire d'adhésion récupérés"
+ *                 utilisateur:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     prenoms:
+ *                       type: string
+ *                     nom:
+ *                       type: string
+ *                     telephone:
+ *                       type: string
+ *                     statut:
+ *                       type: string
+ *                       enum: [EN_ATTENTE, APPROUVE, REJETE]
+ *                     # ... tous les autres champs utilisateur
+ *                 formulaire:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     numero_version:
+ *                       type: integer
+ *                     url_image_formulaire:
+ *                       type: string
+ *                       format: uri
+ *                       description: URL du PDF du formulaire
+ *                     donnees_snapshot:
+ *                       type: object
+ *                       description: Snapshot des données du formulaire
+ *                     cree_le:
+ *                       type: string
+ *                       format: date-time
+ *                 historique_actions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       action:
+ *                         type: string
+ *                         example: "DEMANDE_ADHESION"
+ *                       details:
+ *                         type: object
+ *                       date:
+ *                         type: string
+ *                         format: date-time
+ *                 contexte:
+ *                   type: object
+ *                   properties:
+ *                     peut_approuver:
+ *                       type: boolean
+ *                       example: true
+ *                     peut_rejeter:
+ *                       type: boolean
+ *                       example: true
+ *                     deja_traite:
+ *                       type: boolean
+ *                       example: false
+ *                     statut_actuel:
+ *                       type: string
+ *                       example: "EN_ATTENTE"
+ *                 statistiques:
+ *                   type: object
+ *                   properties:
+ *                     nombre_total_soumissions:
+ *                       type: integer
+ *                     nombre_en_attente:
+ *                       type: integer
+ *                     nombre_approuves:
+ *                       type: integer
+ *                     nombre_rejetes:
+ *                       type: integer
+ *                 actions_possibles:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example:
+ *                     - "Approuver le formulaire"
+ *                     - "Rejeter le formulaire avec raison"
+ *       400:
+ *         description: ID utilisateur manquant
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 erreur:
+ *                   type: string
+ *                   example: "ID utilisateur requis"
+ *                 code:
+ *                   type: string
+ *                   example: "ID_UTILISATEUR_MANQUANT"
+ *       404:
+ *         description: Utilisateur ou formulaire non trouvé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 erreur:
+ *                   type: string
+ *                   example: "Utilisateur non trouvé"
+ *                 code:
+ *                   type: string
+ *                   example: "UTILISATEUR_NON_TROUVE"
+ *       401:
+ *         description: Non autorisé (authentification requise)
+ *       403:
+ *         description: Accès refusé (rôle secrétaire requis)
+ */
+router.get('/formulaire/:id_utilisateur',
+  authentifierJWT,
+  verifierRoleSecretaire,
+  generalLimiter,
+  controleurSecretaire.obtenirFormulaireUtilisateur
+);
+
+/**
+ * @swagger
  * /api/secretaire/approuver-formulaire:
  *   post:
  *     summary: Approuver un formulaire d'adhésion
