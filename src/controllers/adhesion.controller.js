@@ -43,8 +43,8 @@ class AdhesionController {
       // Validation des données du formulaire
       const donneesValidees = adhesionSchema.parse(req.body);
 
-      // Note: Les photos sont maintenant des URLs Cloudinary, plus de validation de fichiers
-      // La validation des URLs se fait dans le schema Zod (selfie_photo_url, signature_url)
+      // Note: Les photos ET le PDF du formulaire sont maintenant des URLs Cloudinary
+      // La validation des URLs se fait dans le schema Zod (selfie_photo_url, signature_url, url_image_formulaire)
 
       // Vérifier les doublons numéro de carte consulaire (si fourni)
       if (donneesValidees.numero_carte_consulaire) {
@@ -64,6 +64,30 @@ class AdhesionController {
       }
 
       // Note: Le numéro d'adhésion sera généré lors de l'approbation par le secrétaire
+      
+      // Vérifier si l'utilisateur existe déjà (pour resoumission)
+      const utilisateurExistant = await prisma.utilisateur.findFirst({
+        where: { telephone: donneesValidees.telephone }
+      });
+
+      if (utilisateurExistant) {
+        if (utilisateurExistant.statut === 'REJETE') {
+          // Cas de resoumission après rejet
+          return this.traiterResoumission(req, res, utilisateurExistant, donneesValidees);
+        } else if (utilisateurExistant.statut === 'EN_ATTENTE') {
+          return res.status(409).json({
+            error: 'Une demande avec ce numéro de téléphone est déjà en cours d\'examen',
+            code: 'DEMANDE_EN_COURS',
+            message: 'Veuillez patienter pendant l\'examen de votre demande actuelle'
+          });
+        } else if (utilisateurExistant.statut === 'APPROUVE') {
+          return res.status(409).json({
+            error: 'Une demande avec ce numéro de téléphone a déjà été approuvée',
+            code: 'DEMANDE_APPROUVEE',
+            message: 'Vous êtes déjà membre de l\'association'
+          });
+        }
+      }
 
       // Créer l'enregistrement utilisateur (statut EN_ATTENTE, pas de numéro d'adhésion)
       const nouvelUtilisateur = await prisma.utilisateur.create({
@@ -92,8 +116,8 @@ class AdhesionController {
         }
       });
 
-      // Les photos sont maintenant fournies en tant que liens Cloudinary
-      logger.info(`Demande d'adhésion créée pour l'utilisateur ${nouvelUtilisateur.id}`);
+      // Les photos ET le PDF sont maintenant fournis par le frontend
+      logger.info(`Demande d'adhésion créée pour l'utilisateur ${nouvelUtilisateur.id} avec PDF depuis frontend`);
 
       // Créer le snapshot des données pour le formulaire d'adhésion
       const snapshotDonnees = {
@@ -114,33 +138,11 @@ class AdhesionController {
         nombre_enfants: donneesValidees.nombre_enfants,
         selfie_photo_url: donneesValidees.selfie_photo_url,
         signature_url: donneesValidees.signature_url,
-        commentaire: donneesValidees.commentaire
+        commentaire: donneesValidees.commentaire,
+        url_image_formulaire: donneesValidees.url_image_formulaire
       };
 
-      // Générer le PDF du formulaire d'adhésion (non-bloquant)
-      logger.info(`Génération PDF formulaire pour utilisateur ${nouvelUtilisateur.id}`);
-      let urlPdfFormulaire = null;
-      
-      try {
-        const pdfBuffer = await pdfGeneratorService.genererFicheAdhesion(
-          nouvelUtilisateur, 
-          donneesValidees.selfie_photo_url
-        );
-
-        // Uploader le PDF vers Cloudinary
-        urlPdfFormulaire = await cloudinaryService.uploadFormulaireAdhesion(
-          pdfBuffer,
-          nouvelUtilisateur.id,
-          `TEMP_${nouvelUtilisateur.id}`
-        );
-        logger.info(`PDF généré et uploadé avec succès pour utilisateur ${nouvelUtilisateur.id}`);
-      } catch (pdfError) {
-        logger.warn(`Échec génération PDF pour utilisateur ${nouvelUtilisateur.id} - Adhésion continue sans PDF`, {
-          error: pdfError.message,
-          utilisateur_id: nouvelUtilisateur.id
-        });
-        // Le processus d'adhésion continue même sans PDF
-      }
+      // Le PDF est maintenant fourni par le frontend - plus de génération serveur
 
       // Créer la première version du formulaire d'adhésion
       const formulaireAdhesion = await prisma.formulaireAdhesion.create({
@@ -149,7 +151,7 @@ class AdhesionController {
             connect: { id: nouvelUtilisateur.id }
           },
           numero_version: 1,
-          url_image_formulaire: urlPdfFormulaire,
+          url_image_formulaire: donneesValidees.url_image_formulaire,
           donnees_snapshot: snapshotDonnees,
           est_version_active: true
         }
@@ -163,7 +165,9 @@ class AdhesionController {
           details: {
             telephone: donneesValidees.telephone,
             numero_carte_consulaire: donneesValidees.numero_carte_consulaire,
-            formulaire_soumis: true
+            formulaire_soumis: true,
+            pdf_fourni_par_frontend: true,
+            url_pdf: donneesValidees.url_image_formulaire
           },
           adresse_ip: req.ip,
           agent_utilisateur: req.get('User-Agent')
@@ -185,7 +189,7 @@ class AdhesionController {
           numero_carte_consulaire: donneesValidees.numero_carte_consulaire,
           statut: nouvelUtilisateur.statut,
           date_soumission: nouvelUtilisateur.cree_le,
-          url_fiche_adhesion: urlPdfFormulaire // URL de téléchargement du PDF
+          url_fiche_adhesion: donneesValidees.url_image_formulaire // URL de téléchargement du PDF
         },
         prochaines_etapes: [
           'Votre demande d\'adhésion est en cours d\'examen par le secrétariat',
@@ -591,6 +595,11 @@ class AdhesionController {
             description: "URL Cloudinary de la signature du demandeur (optionnel)", 
             format: "URL valide",
             example: "https://res.cloudinary.com/your-cloud/image/upload/v123456789/signature.png"
+          },
+          url_image_formulaire: {
+            description: "URL Cloudinary du PDF du formulaire d'adhésion généré par le frontend (REQUIS)",
+            format: "URL valide",
+            example: "https://res.cloudinary.com/your-cloud/image/upload/v123456789/formulaire.pdf"
           }
         },
         example_payload: {
@@ -611,7 +620,8 @@ class AdhesionController {
           nombre_enfants: 0,
           selfie_photo_url: "https://res.cloudinary.com/your-cloud/image/upload/v123456789/selfie.jpg",
           signature_url: "https://res.cloudinary.com/your-cloud/image/upload/v123456789/signature.png",
-          commentaire: ""
+          commentaire: "",
+          url_image_formulaire: "https://res.cloudinary.com/your-cloud/image/upload/v123456789/formulaire.pdf"
         }
       };
 
@@ -630,7 +640,107 @@ class AdhesionController {
   }
 
   /**
-   * Resoumission d'un formulaire après rejet
+   * Traiter la resoumission après rejet (méthode helper)
+   */
+  async traiterResoumission(req, res, utilisateurExistant, donneesValidees) {
+    try {
+      logger.info(`Resoumission détectée pour utilisateur ${utilisateurExistant.id} (${donneesValidees.telephone})`);
+
+      // Mettre à jour les données de l'utilisateur
+      const utilisateurMisAJour = await prisma.utilisateur.update({
+        where: { id: utilisateurExistant.id },
+        data: {
+          prenoms: donneesValidees.prenoms,
+          nom: donneesValidees.nom,
+          date_naissance: convertirDateFrancaise(donneesValidees.date_naissance),
+          lieu_naissance: donneesValidees.lieu_naissance,
+          adresse: donneesValidees.adresse,
+          profession: donneesValidees.profession,
+          ville_residence: donneesValidees.ville_residence,
+          date_entree_congo: convertirDateFrancaise(donneesValidees.date_entree_congo),
+          employeur_ecole: donneesValidees.employeur_ecole,
+          numero_carte_consulaire: donneesValidees.numero_carte_consulaire || null,
+          date_emission_piece: convertirDateFrancaise(donneesValidees.date_emission_piece) || null,
+          prenom_conjoint: donneesValidees.prenom_conjoint || null,
+          nom_conjoint: donneesValidees.nom_conjoint || null,
+          nombre_enfants: donneesValidees.nombre_enfants || 0,
+          selfie_photo_url: donneesValidees.selfie_photo_url || null,
+          signature_url: donneesValidees.signature_url || null,
+          commentaire: donneesValidees.commentaire || null,
+          statut: 'EN_ATTENTE', // Remettre en attente
+          raison_rejet: null,
+          rejete_le: null,
+          rejete_par: null,
+          modifie_le: new Date()
+        }
+      });
+
+      // Mettre à jour le formulaire d'adhésion avec le nouveau PDF
+      await prisma.formulaireAdhesion.updateMany({
+        where: { 
+          id_utilisateur: utilisateurExistant.id,
+          est_version_active: true
+        },
+        data: {
+          url_image_formulaire: donneesValidees.url_image_formulaire,
+          numero_version: { increment: 1 },
+          donnees_snapshot: {
+            ...donneesValidees,
+            date_resoumission: new Date().toISOString()
+          }
+        }
+      });
+
+      // Créer journal d'audit pour resoumission
+      await prisma.journalAudit.create({
+        data: {
+          id_utilisateur: utilisateurExistant.id,
+          action: 'RESOUMISSION_APRES_REJET',
+          details: {
+            ancien_statut: 'REJETE',
+            nouveau_statut: 'EN_ATTENTE',
+            telephone: donneesValidees.telephone,
+            modification_donnees: true,
+            pdf_fourni_par_frontend: true,
+            nouvelle_url_pdf: donneesValidees.url_image_formulaire
+          },
+          adresse_ip: req.ip,
+          agent_utilisateur: req.get('User-Agent')
+        }
+      });
+
+      logger.info(`Resoumission réussie pour ${donneesValidees.prenoms} ${donneesValidees.nom} (ID: ${utilisateurExistant.id})`);
+
+      res.json({
+        message: 'Formulaire mis à jour et resoumis avec succès',
+        adhesion: {
+          id: utilisateurMisAJour.id,
+          reference_temporaire: `RESUBMIT_${utilisateurMisAJour.id}`,
+          nom_complet: `${donneesValidees.prenoms} ${donneesValidees.nom}`,
+          telephone: donneesValidees.telephone,
+          statut: utilisateurMisAJour.statut,
+          date_resoumission: utilisateurMisAJour.modifie_le,
+          url_fiche_adhesion: donneesValidees.url_image_formulaire
+        },
+        prochaines_etapes: [
+          'Votre formulaire mis à jour est maintenant en cours d\'examen',
+          'Les corrections apportées seront examinées par notre équipe',
+          'Vous recevrez une notification dès qu\'une décision sera prise'
+        ]
+      });
+
+    } catch (error) {
+      logger.error('Erreur traitement resoumission:', error);
+      res.status(500).json({
+        error: 'Erreur lors de la resoumission du formulaire',
+        code: 'ERREUR_RESOUMISSION',
+        message: 'Une erreur est survenue lors du traitement de votre resoumission'
+      });
+    }
+  }
+
+  /**
+   * DEPRECATED: Resoumission d'un formulaire après rejet (maintenant intégré dans soumettreDemande)
    */
   async resoumettreDemande(req, res) {
     try {
@@ -699,46 +809,26 @@ class AdhesionController {
         }
       });
 
-      // Régénérer le PDF avec les nouvelles données (non-bloquant)
-      let urlPdfFormulaire = null;
-      try {
-        logger.info(`Régénération PDF pour resoumission utilisateur ${utilisateurMisAJour.id}`);
-        const pdfBuffer = await pdfGeneratorService.genererFicheAdhesion(
-          utilisateurMisAJour, 
-          donneesValidees.selfie_photo_url
-        );
-
-        urlPdfFormulaire = await cloudinaryService.uploadFormulaireAdhesion(
-          pdfBuffer,
-          utilisateurMisAJour.id,
-          `RESUBMIT_${utilisateurMisAJour.id}_${Date.now()}`
-        );
-        
-        // Mettre à jour le formulaire d'adhésion avec le nouveau PDF
-        await prisma.formulaireAdhesion.updateMany({
-          where: { 
-            id_utilisateur: utilisateurMisAJour.id,
-            est_version_active: true
-          },
-          data: {
-            url_image_formulaire: urlPdfFormulaire,
-            numero_version: { increment: 1 },
-            donnees_snapshot: {
-              prenoms: donneesValidees.prenoms,
-              nom: donneesValidees.nom,
-              telephone: donneesValidees.telephone,
-              date_resoumission: new Date().toISOString()
-            }
+      // Mettre à jour le formulaire d'adhésion avec le nouveau PDF fourni par le frontend
+      await prisma.formulaireAdhesion.updateMany({
+        where: { 
+          id_utilisateur: utilisateurMisAJour.id,
+          est_version_active: true
+        },
+        data: {
+          url_image_formulaire: donneesValidees.url_image_formulaire,
+          numero_version: { increment: 1 },
+          donnees_snapshot: {
+            prenoms: donneesValidees.prenoms,
+            nom: donneesValidees.nom,
+            telephone: donneesValidees.telephone,
+            url_image_formulaire: donneesValidees.url_image_formulaire,
+            date_resoumission: new Date().toISOString()
           }
-        });
-        
-        logger.info(`PDF resoumission généré pour utilisateur ${utilisateurMisAJour.id}`);
-      } catch (pdfError) {
-        logger.warn(`Échec génération PDF resoumission pour utilisateur ${utilisateurMisAJour.id}`, {
-          error: pdfError.message
-        });
-        // La resoumission continue même sans PDF
-      }
+        }
+      });
+      
+      logger.info(`Formulaire resoumis avec nouveau PDF pour utilisateur ${utilisateurMisAJour.id}`);
 
       // Créer journal d'audit pour resoumission
       await prisma.journalAudit.create({
@@ -750,7 +840,8 @@ class AdhesionController {
             nouveau_statut: 'EN_ATTENTE',
             telephone: donneesValidees.telephone,
             modification_donnees: true,
-            pdf_regenere: !!urlPdfFormulaire
+            pdf_fourni_par_frontend: true,
+            nouvelle_url_pdf: donneesValidees.url_image_formulaire
           },
           adresse_ip: req.ip,
           agent_utilisateur: req.get('User-Agent')
@@ -768,7 +859,7 @@ class AdhesionController {
           statut: utilisateurMisAJour.statut,
           reference_temporaire: `RESUBMIT_${utilisateurMisAJour.id}`,
           date_resoumission: utilisateurMisAJour.modifie_le,
-          url_fiche_adhesion: urlPdfFormulaire
+          url_fiche_adhesion: donneesValidees.url_image_formulaire
         },
         prochaines_etapes: [
           'Votre formulaire mis à jour est maintenant en cours d\'examen par le secrétariat',
@@ -799,6 +890,9 @@ class AdhesionController {
       });
     }
   }
+
+  // ENDPOINT SUPPRIMÉ: mettreAJourPdfApprouve
+  // Le workflow est maintenant synchrone via l'endpoint d'approbation du secrétaire
 
   /**
    * Obtenir les détails du rejet d'un formulaire

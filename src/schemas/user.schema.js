@@ -140,7 +140,12 @@ const adhesionSchema = z.object({
   commentaire: z.string()
     .max(100, 'Le commentaire ne peut dépasser 100 caractères')
     .optional()
-    .or(z.literal(''))
+    .or(z.literal('')),
+
+  // URL du PDF généré par le frontend (REQUIS)
+  url_image_formulaire: z.string()
+    .url('URL du formulaire PDF invalide')
+    .min(1, 'L\'URL du formulaire PDF est requise')
 });
 
 // File validation schema

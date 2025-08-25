@@ -327,7 +327,15 @@ router.get('/formulaires',
  * /api/secretaire/approuver-formulaire:
  *   post:
  *     summary: Approuver un formulaire d'adhésion
- *     description: Approuve un formulaire et ajoute automatiquement la signature du président
+ *     description: |
+ *       Approuve un formulaire d'adhésion avec le workflow synchrone.
+ *       
+ *       **Workflow Synchrone :**
+ *       1. Secrétaire clique "Valider" dans l'UI
+ *       2. Frontend génère immédiatement le PDF final avec signatures
+ *       3. Frontend envoie la requête d'approbation avec l'URL du PDF final
+ *       4. Serveur met à jour les données utilisateur ET le PDF en une transaction
+ *       5. Processus complet et atomique
  *     tags: [Forms]
  *     security:
  *       - BearerAuth: []
@@ -336,9 +344,30 @@ router.get('/formulaires',
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/ApproveFormRequest'
+ *             type: object
+ *             required:
+ *               - id_utilisateur
+ *               - url_formulaire_final
+ *             properties:
+ *               id_utilisateur:
+ *                 type: integer
+ *                 description: ID de l'utilisateur dont le formulaire est à approuver
+ *                 example: 3
+ *               url_formulaire_final:
+ *                 type: string
+ *                 format: uri
+ *                 description: |
+ *                   **REQUIS** : URL Cloudinary du PDF final avec signatures 
+ *                   généré par le frontend au moment de l'approbation.
+ *                 example: "https://res.cloudinary.com/dtqxhyqtp/image/upload/v1755877890/formulaire_final_approuve_user_3.pdf"
+ *               commentaire:
+ *                 type: string
+ *                 maxLength: 500
+ *                 description: Commentaire optionnel du secrétaire
+ *                 example: "Dossier complet et validé"
  *           example:
  *             id_utilisateur: 3
+ *             url_formulaire_final: "https://res.cloudinary.com/dtqxhyqtp/image/upload/v1755877890/formulaire_final_approuve_user_3.pdf"
  *             commentaire: "Dossier complet et validé"
  *     responses:
  *       200:
@@ -372,12 +401,51 @@ router.get('/formulaires',
  *                     - "🏷️ Code de formulaire généré"
  *                     - "✍️ Signature du président ajoutée"
  *                     - "🎫 Carte d'adhésion émise"
+ *       400:
+ *         description: |
+ *           Données invalides ou manquantes. Erreurs courantes :
+ *           - URL du PDF final manquante
+ *           - Formulaire déjà approuvé
+ *           - URL Cloudinary invalide
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 erreur:
+ *                   type: string
+ *                   example: "URL du formulaire final requis"
+ *                 code:
+ *                   type: string
+ *                   example: "URL_FORMULAIRE_MANQUANT"
+ *                 message:
+ *                   type: string
+ *                   example: "Le PDF final avec signatures doit être généré par le frontend avant approbation"
  *       404:
  *         description: Formulaire non trouvé
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 erreur:
+ *                   type: string
+ *                   example: "Formulaire non trouvé ou non soumis"
+ *                 code:
+ *                   type: string
+ *                   example: "FORMULAIRE_NON_TROUVE"
+ *       500:
+ *         description: |
+ *           Erreur serveur. Si la mise à jour du PDF échoue, 
+ *           l'ensemble de l'approbation est annulée (transaction atomique).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Erreur lors de l'approbation du formulaire"
  */
 router.post('/approuver-formulaire', 
   authentifierJWT, 

@@ -598,13 +598,21 @@ class ControleurSecretaire {
    */
   async approuverFormulaire(req, res) {
     try {
-      const { id_utilisateur, commentaire } = req.body;
+      const { id_utilisateur, commentaire, url_formulaire_final } = req.body;
       const idSecretaire = req.utilisateur.id;
 
       if (!id_utilisateur) {
         return res.status(400).json({
           erreur: 'ID utilisateur requis',
           code: 'DONNEES_MANQUANTES'
+        });
+      }
+
+      if (!url_formulaire_final) {
+        return res.status(400).json({
+          erreur: 'URL du formulaire final requis',
+          code: 'URL_FORMULAIRE_MANQUANT',
+          message: 'Le PDF final avec signatures doit être généré par le frontend avant approbation'
         });
       }
 
@@ -693,47 +701,30 @@ class ControleurSecretaire {
 
       logger.info(`Formulaire approuvé avec signature pour utilisateur ${id_utilisateur} par secrétaire ${idSecretaire}`);
 
-      // Régénérer le PDF avec la signature du président (non-bloquant)
-      let nouvelUrlPdf = null;
+      // Remplacer le PDF original avec la version finale synchrone du frontend
       try {
-        logger.info(`Régénération PDF avec signature président pour utilisateur ${id_utilisateur}`);
-        // Combiner les données pour le PDF (données mises à jour + URLs originales)
-        const donneesCompletesUser = {
-          ...utilisateurMisAJour,
-          signature_url: utilisateur.signature_url // Signature du membre
-        };
+        logger.info(`Mise à jour synchrone du PDF final pour utilisateur ${id_utilisateur}`);
         
-        const pdfBuffer = await pdfGeneratorService.genererFicheAdhesion(
-          donneesCompletesUser, 
-          utilisateur.selfie_photo_url,
-          signaturePresident?.url_signature // Inclure la signature du président
-        );
-        
-        nouvelUrlPdf = await cloudinaryService.uploadFormulaireAdhesion(
-          pdfBuffer,
-          utilisateurMisAJour.id,
-          numeroAdhesion
-        );
-        
-        // Mettre à jour le formulaire d'adhésion avec le nouveau PDF
+        // Mettre à jour le formulaire d'adhésion avec le PDF final fourni par le frontend
         await prisma.formulaireAdhesion.updateMany({
           where: { 
             id_utilisateur: id_utilisateur,
             est_version_active: true
           },
           data: {
-            url_image_formulaire: nouvelUrlPdf,
+            url_image_formulaire: url_formulaire_final,
             est_version_active: true
           }
         });
         
-        logger.info(`PDF avec signature président généré et uploadé pour utilisateur ${id_utilisateur}`);
-      } catch (pdfError) {
-        logger.warn(`Échec génération PDF avec signature pour utilisateur ${id_utilisateur}`, {
-          error: pdfError.message,
+        logger.info(`PDF final synchrone mis à jour pour utilisateur ${id_utilisateur}`);
+      } catch (updateError) {
+        logger.warn(`Échec mise à jour PDF final synchrone pour utilisateur ${id_utilisateur}`, {
+          error: updateError.message,
           utilisateur_id: id_utilisateur
         });
-        // L'approbation continue même sans PDF
+        // L'approbation échoue si la mise à jour PDF échoue
+        throw updateError;
       }
 
       // Envoyer notification email si l'utilisateur a un email
