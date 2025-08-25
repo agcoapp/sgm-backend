@@ -102,7 +102,10 @@ const router = express.Router();
  *                 example: "Université Marien Ngouabi"
  *               telephone:
  *                 type: string
- *                 pattern: '^\\+?(242|241|33)[0-9]{7,9}$'
+ *                 minLength: 8
+ *                 maxLength: 20
+ *                 pattern: '^\\+?[0-9]+$'
+ *                 description: "Numéro de téléphone international (format libre avec indicatif)"
  *                 example: "+242066123456"
  *               # PDF généré par le frontend (REQUIS)
  *               url_image_formulaire:
@@ -223,7 +226,7 @@ const router = express.Router();
  *         description: |
  *           Données invalides. Erreurs courantes :
  *           - URL du PDF manquante ou invalide
- *           - Format de téléphone incorrect
+ *           - Format de téléphone incorrect (doit contenir 8-20 caractères, chiffres et + uniquement)
  *           - Champs requis manquants
  *           - Formats de date invalides
  *         content:
@@ -252,7 +255,7 @@ const router = express.Router();
  *                     - champ: "url_image_formulaire"
  *                       message: "L'URL du formulaire PDF est requise"
  *                     - champ: "telephone"
- *                       message: "Format de téléphone invalide"
+ *                       message: "Format de téléphone invalide. Seuls les chiffres et le + sont autorisés"
  *       409:
  *         description: Membre avec ce numéro de carte consulaire existe déjà
  *         content:
@@ -296,8 +299,10 @@ router.post(
  *         required: true
  *         schema:
  *           type: string
- *           pattern: '^\\+?(242|241|33)[0-9]{7,9}$'
- *         description: Numéro de téléphone utilisé lors de l'inscription
+ *           minLength: 8
+ *           maxLength: 20
+ *           pattern: '^\\+?[0-9]+$'
+ *         description: Numéro de téléphone utilisé lors de l'inscription (format libre)
  *         example: "+242066123456"
  *       - in: query
  *         name: reference
@@ -458,8 +463,10 @@ router.get('/schema', adhesionController.getAdhesionSchema);
  *             properties:
  *               telephone:
  *                 type: string
- *                 pattern: '^\\+?(242|241|33)[0-9]{7,9}$'
- *                 description: Téléphone pour identifier l'utilisateur rejeté
+ *                 minLength: 8
+ *                 maxLength: 20
+ *                 pattern: '^\\+?[0-9]+$'
+ *                 description: Téléphone pour identifier l'utilisateur rejeté (format libre)
  *                 example: "+242066123456"
  *               url_image_formulaire:
  *                 type: string
@@ -553,7 +560,10 @@ router.put('/resoumission', uploadLimiter, adhesionController.resoumettreDemande
  *         required: true
  *         schema:
  *           type: string
- *         description: Numéro de téléphone du demandeur
+ *           minLength: 8
+ *           maxLength: 20
+ *           pattern: '^\\+?[0-9]+$'
+ *         description: Numéro de téléphone du demandeur (format libre)
  *         example: "+242066123456"
  *     responses:
  *       200:

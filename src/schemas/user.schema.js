@@ -70,14 +70,13 @@ const adhesionSchema = z.object({
     .max(150, 'Le nom de l\'employeur/école ne peut dépasser 150 caractères'),
 
   telephone: z.string()
+    .min(8, 'Le numéro de téléphone doit contenir au moins 8 caractères')
+    .max(20, 'Le numéro de téléphone ne peut dépasser 20 caractères')
     .transform(str => str.replace(/\s+/g, '')) // Enlever tous les espaces
     .refine(phone => {
-      // Accepter les numéros du Congo (+242), Gabon (+241), et France (+33)
-      const congoBrazzaville = /^\+?242[0-9]{7,9}$/;
-      const gabon = /^\+?241[0-9]{7,8}$/;
-      const france = /^\+?33[0-9]{8,9}$/;
-      return congoBrazzaville.test(phone) || gabon.test(phone) || france.test(phone);
-    }, 'Format de téléphone invalide. Accepté: Congo (+242), Gabon (+241), France (+33)'),
+      // Validation basique: doit contenir uniquement des chiffres et éventuellement un +
+      return /^\+?[0-9]+$/.test(phone);
+    }, 'Format de téléphone invalide. Seuls les chiffres et le + sont autorisés'),
 
   // Informations carte consulaire (optionnelles)
   numero_carte_consulaire: z.string()
