@@ -56,10 +56,17 @@ class AuthController {
       const utilisateurId = req.user.id;
 
       if (!nouveau_mot_passe) {
-        return res.status(400).json({
-          erreur: 'Nouveau mot de passe requis',
-          code: 'DONNEES_MANQUANTES'
-        });
+        const validationError = ErrorHandler.createBusinessError(
+          'Nouveau mot de passe requis',
+          'DONNEES_MANQUANTES',
+          400,
+          ['Fournissez un nouveau mot de passe valide']
+        );
+        const context = {
+          operation: 'change_temporary_password',
+          user_id: utilisateurId
+        };
+        return ErrorHandler.formatBusinessError(validationError, res, context);
       }
 
       // Valider le mot de passe
@@ -69,10 +76,21 @@ class AuthController {
       };
 
       if (!validerMotPasse(nouveau_mot_passe)) {
-        return res.status(400).json({
-          erreur: 'Le mot de passe doit contenir au moins 8 caractères, incluant majuscules, minuscules, chiffres et caractères spéciaux',
-          code: 'MOT_PASSE_INVALIDE'
-        });
+        const validationError = ErrorHandler.createBusinessError(
+          'Le mot de passe doit contenir au moins 8 caractères, incluant majuscules, minuscules, chiffres et caractères spéciaux',
+          'MOT_PASSE_INVALIDE',
+          400,
+          [
+            'Utilisez au moins 8 caractères',
+            'Incluez des majuscules et minuscules',
+            'Ajoutez des chiffres et caractères spéciaux (@$!%*?&)'
+          ]
+        );
+        const context = {
+          operation: 'password_validation',
+          user_id: utilisateurId
+        };
+        return ErrorHandler.formatBusinessError(validationError, res, context);
       }
 
       // Récupérer l'utilisateur
@@ -81,26 +99,41 @@ class AuthController {
       });
 
       if (!utilisateur) {
-        return res.status(404).json({
-          erreur: 'Utilisateur non trouvé',
-          code: 'UTILISATEUR_INTROUVABLE'
-        });
+        const context = {
+          operation: 'user_lookup',
+          user_id: utilisateurId
+        };
+        return ErrorHandler.notFound(res, 'Utilisateur', context);
       }
 
       // Vérifier que l'utilisateur doit changer son mot de passe
       if (!utilisateur.doit_changer_mot_passe) {
-        return res.status(403).json({
-          erreur: 'Vous n\'êtes pas autorisé à utiliser ce endpoint',
-          code: 'NON_AUTORISE'
-        });
+        const authError = new Error('Vous n\'êtes pas autorisé à utiliser cet endpoint');
+        authError.code = 'NON_AUTORISE';
+        authError.status = 403;
+        const context = {
+          operation: 'temporary_password_change_authorization',
+          user_id: utilisateurId
+        };
+        return ErrorHandler.formatAuthorizationError(authError, res, context);
       }
 
       // Vérifier que l'utilisateur n'a pas déjà changé son mot de passe temporaire
       if (utilisateur.a_change_mot_passe_temporaire) {
-        return res.status(403).json({
-          erreur: 'Vous avez déjà changé votre mot de passe temporaire. Utilisez l\'endpoint de changement de mot de passe normal.',
-          code: 'DEJA_CHANGE'
-        });
+        const businessError = ErrorHandler.createBusinessError(
+          'Vous avez déjà changé votre mot de passe temporaire',
+          'DEJA_CHANGE',
+          403,
+          [
+            'Utilisez l\'endpoint /api/auth/changer-mot-passe pour changer votre mot de passe',
+            'Fournissez votre ancien mot de passe pour la sécurité'
+          ]
+        );
+        const context = {
+          operation: 'temporary_password_already_changed',
+          user_id: utilisateurId
+        };
+        return ErrorHandler.formatBusinessError(businessError, res, context);
       }
 
       // Hasher le nouveau mot de passe
@@ -126,10 +159,20 @@ class AuthController {
         });
 
         if (emailExistant) {
-          return res.status(409).json({
-            erreur: 'Cet email est déjà utilisé par un autre utilisateur',
-            code: 'EMAIL_DEJA_UTILISE'
-          });
+          const businessError = ErrorHandler.createBusinessError(
+            'Cet email est déjà utilisé par un autre utilisateur',
+            'EMAIL_DEJA_UTILISE',
+            409,
+            [
+              'Utilisez une adresse email différente',
+              'Vérifiez si vous avez déjà un compte avec cet email'
+            ]
+          );
+          const context = {
+            operation: 'email_uniqueness_check',
+            user_id: utilisateurId
+          };
+          return ErrorHandler.formatBusinessError(businessError, res, context);
         }
 
         donneesUpdate.email = email;
@@ -161,11 +204,11 @@ class AuthController {
       });
 
     } catch (error) {
-      logger.error('Erreur changement mot de passe temporaire:', error);
-      res.status(500).json({
-        erreur: 'Erreur lors du changement de mot de passe temporaire',
-        code: 'ERREUR_CHANGEMENT_MOT_PASSE_TEMPORAIRE'
-      });
+      const context = {
+        operation: 'change_temporary_password',
+        user_id: req.user?.id
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 
@@ -200,26 +243,28 @@ class AuthController {
       });
 
     } catch (error) {
-      if (error.name === 'ZodError') {
-        return res.status(400).json({
-          erreur: 'Données invalides',
-          code: 'ERREUR_VALIDATION',
-          details: error.errors
-        });
-      }
-
       if (error.message === 'Ancien mot de passe incorrect') {
-        return res.status(400).json({
-          erreur: error.message,
-          code: 'ANCIEN_MOT_PASSE_INCORRECT'
-        });
+        const businessError = ErrorHandler.createBusinessError(
+          error.message,
+          'ANCIEN_MOT_PASSE_INCORRECT',
+          400,
+          [
+            'Vérifiez votre ancien mot de passe',
+            'Assurez-vous de saisir le bon mot de passe actuel'
+          ]
+        );
+        const context = {
+          operation: 'password_change',
+          user_id: req.user?.id
+        };
+        return ErrorHandler.formatBusinessError(businessError, res, context);
       }
 
-      logger.error('Erreur changement mot de passe:', error);
-      res.status(500).json({
-        erreur: 'Erreur lors du changement de mot de passe',
-        code: 'ERREUR_CHANGEMENT_MOT_PASSE'
-      });
+      const context = {
+        operation: 'password_change',
+        user_id: req.user?.id
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 
@@ -232,10 +277,20 @@ class AuthController {
       const { email, nom_utilisateur } = req.body;
 
       if (!email && !nom_utilisateur) {
-        return res.status(400).json({
-          erreur: 'Email ou nom d\'utilisateur requis',
-          code: 'DONNEES_MANQUANTES'
-        });
+        const validationError = ErrorHandler.createBusinessError(
+          'Email ou nom d\'utilisateur requis',
+          'DONNEES_MANQUANTES',
+          400,
+          [
+            'Fournissez votre adresse email',
+            'Ou fournissez votre nom d\'utilisateur'
+          ]
+        );
+        const context = {
+          operation: 'password_reset_request',
+          user_id: 'anonymous'
+        };
+        return ErrorHandler.formatBusinessError(validationError, res, context);
       }
 
       // Trouver l'utilisateur par email ou nom d'utilisateur
@@ -256,26 +311,46 @@ class AuthController {
       });
 
       if (!utilisateur) {
-        return res.status(404).json({
-          erreur: 'Aucun compte trouvé avec ces informations',
-          code: 'UTILISATEUR_INTROUVABLE'
-        });
+        const context = {
+          operation: 'password_reset_user_lookup',
+          user_id: email || nom_utilisateur || 'unknown'
+        };
+        return ErrorHandler.notFound(res, 'Aucun compte avec ces informations', context);
       }
 
       if (!utilisateur.est_actif) {
-        return res.status(403).json({
-          erreur: 'Ce compte est désactivé',
-          code: 'COMPTE_DESACTIVE'
-        });
+        const businessError = ErrorHandler.createBusinessError(
+          'Ce compte est désactivé',
+          'COMPTE_DESACTIVE',
+          403,
+          [
+            'Contactez un administrateur pour réactiver votre compte',
+            'Vérifiez que votre adhésion est à jour'
+          ]
+        );
+        const context = {
+          operation: 'password_reset_account_status',
+          user_id: utilisateur.id
+        };
+        return ErrorHandler.formatBusinessError(businessError, res, context);
       }
 
       // Vérifier que l'utilisateur a un email
       if (!utilisateur.email) {
-        return res.status(400).json({
-          erreur: 'Aucun email associé à ce compte. Veuillez contacter un administrateur.',
-          code: 'EMAIL_MANQUANT',
-          suggestion: 'Vous devez ajouter un email à votre profil pour pouvoir réinitialiser votre mot de passe.'
-        });
+        const businessError = ErrorHandler.createBusinessError(
+          'Aucun email associé à ce compte',
+          'EMAIL_MANQUANT',
+          400,
+          [
+            'Contactez un administrateur pour ajouter un email à votre profil',
+            'Vous devez avoir un email pour réinitialiser votre mot de passe'
+          ]
+        );
+        const context = {
+          operation: 'password_reset_email_check',
+          user_id: utilisateur.id
+        };
+        return ErrorHandler.formatBusinessError(businessError, res, context);
       }
 
       // Générer un token de récupération
@@ -326,11 +401,11 @@ class AuthController {
       });
 
     } catch (error) {
-      logger.error('Erreur réinitialisation mot de passe:', error);
-      res.status(500).json({
-        erreur: 'Erreur lors de la demande de réinitialisation',
-        code: 'ERREUR_REINITIALISATION'
-      });
+      const context = {
+        operation: 'password_reset_request',
+        user_id: req.body?.email || req.body?.nom_utilisateur || 'unknown'
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 
@@ -342,10 +417,20 @@ class AuthController {
       const { token, nouveau_mot_passe } = req.body;
 
       if (!token || !nouveau_mot_passe) {
-        return res.status(400).json({
-          erreur: 'Token et nouveau mot de passe requis',
-          code: 'DONNEES_MANQUANTES'
-        });
+        const validationError = ErrorHandler.createBusinessError(
+          'Token et nouveau mot de passe requis',
+          'DONNEES_MANQUANTES',
+          400,
+          [
+            'Fournissez le token de récupération reçu par email',
+            'Fournissez un nouveau mot de passe valide'
+          ]
+        );
+        const context = {
+          operation: 'password_reset_confirmation',
+          user_id: 'unknown'
+        };
+        return ErrorHandler.formatBusinessError(validationError, res, context);
       }
 
       // Valider le mot de passe
@@ -355,10 +440,21 @@ class AuthController {
       };
 
       if (!validerMotPasse(nouveau_mot_passe)) {
-        return res.status(400).json({
-          erreur: 'Le mot de passe doit contenir au moins 8 caractères, incluant majuscules, minuscules, chiffres et caractères spéciaux',
-          code: 'MOT_PASSE_INVALIDE'
-        });
+        const validationError = ErrorHandler.createBusinessError(
+          'Le mot de passe doit contenir au moins 8 caractères, incluant majuscules, minuscules, chiffres et caractères spéciaux',
+          'MOT_PASSE_INVALIDE',
+          400,
+          [
+            'Utilisez au moins 8 caractères',
+            'Incluez des majuscules et minuscules',
+            'Ajoutez des chiffres et caractères spéciaux (@$!%*?&)'
+          ]
+        );
+        const context = {
+          operation: 'password_reset_validation',
+          user_id: 'unknown'
+        };
+        return ErrorHandler.formatBusinessError(validationError, res, context);
       }
 
       // Trouver le token
@@ -385,17 +481,38 @@ class AuthController {
       });
 
       if (!tokenRecuperation) {
-        return res.status(400).json({
-          erreur: 'Token invalide ou expiré',
-          code: 'TOKEN_INVALIDE'
-        });
+        const businessError = ErrorHandler.createBusinessError(
+          'Token invalide ou expiré',
+          'TOKEN_INVALIDE',
+          400,
+          [
+            'Vérifiez le token reçu par email',
+            'Demandez un nouveau lien de réinitialisation si nécessaire',
+            'Les tokens expirent après 1 heure'
+          ]
+        );
+        const context = {
+          operation: 'password_reset_token_validation',
+          user_id: 'unknown'
+        };
+        return ErrorHandler.formatBusinessError(businessError, res, context);
       }
 
       if (!tokenRecuperation.utilisateur.est_actif) {
-        return res.status(403).json({
-          erreur: 'Ce compte est désactivé',
-          code: 'COMPTE_DESACTIVE'
-        });
+        const businessError = ErrorHandler.createBusinessError(
+          'Ce compte est désactivé',
+          'COMPTE_DESACTIVE',
+          403,
+          [
+            'Contactez un administrateur pour réactiver votre compte',
+            'Vérifiez que votre adhésion est à jour'
+          ]
+        );
+        const context = {
+          operation: 'password_reset_account_status',
+          user_id: tokenRecuperation.utilisateur.id
+        };
+        return ErrorHandler.formatBusinessError(businessError, res, context);
       }
 
       // Hasher le nouveau mot de passe
@@ -441,11 +558,11 @@ class AuthController {
       });
 
     } catch (error) {
-      logger.error('Erreur confirmation réinitialisation mot de passe:', error);
-      res.status(500).json({
-        erreur: 'Erreur lors de la confirmation de réinitialisation',
-        code: 'ERREUR_CONFIRMATION_REINITIALISATION'
-      });
+      const context = {
+        operation: 'password_reset_confirmation',
+        user_id: req.body?.token || 'unknown'
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 
@@ -475,10 +592,11 @@ class AuthController {
       });
 
       if (!utilisateur) {
-        return res.status(404).json({
-          erreur: 'Utilisateur non trouvé',
-          code: 'UTILISATEUR_NON_TROUVE'
-        });
+        const context = {
+          operation: 'get_user_profile',
+          user_id: req.user?.id
+        };
+        return ErrorHandler.notFound(res, 'Utilisateur', context);
       }
 
       res.json({
@@ -489,11 +607,11 @@ class AuthController {
       });
 
     } catch (error) {
-      logger.error('Erreur obtention profil:', error);
-      res.status(500).json({
-        erreur: 'Erreur lors de l\'obtention du profil',
-        code: 'ERREUR_PROFIL'
-      });
+      const context = {
+        operation: 'get_user_profile',
+        user_id: req.user?.id
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 
@@ -519,11 +637,11 @@ class AuthController {
       });
 
     } catch (error) {
-      logger.error('Erreur déconnexion:', error);
-      res.status(500).json({
-        erreur: 'Erreur lors de la déconnexion',
-        code: 'ERREUR_DECONNEXION'
-      });
+      const context = {
+        operation: 'user_logout',
+        user_id: req.user?.id
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 
@@ -554,11 +672,11 @@ class AuthController {
       });
 
     } catch (error) {
-      logger.error('Erreur statut utilisateur:', error);
-      res.status(500).json({
-        erreur: 'Erreur lors de la récupération du statut',
-        code: 'ERREUR_STATUT'
-      });
+      const context = {
+        operation: 'get_user_status',
+        user_id: req.user?.id
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 }

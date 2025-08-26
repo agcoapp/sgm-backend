@@ -129,19 +129,34 @@ const verifierRole = (...rolesAutorises) => {
  */
 const verifierChangementMotPasse = (req, res, next) => {
   if (!req.user) {
-    return res.status(401).json({
-      erreur: 'Authentification requise',
-      code: 'AUTH_REQUISE'
-    });
+    const authError = new Error('Authentification requise');
+    authError.code = 'AUTH_REQUISE';
+    authError.status = 401;
+    const context = {
+      operation: 'password_change_verification',
+      user_id: 'anonymous'
+    };
+    return ErrorHandler.formatAuthError(authError, res, context);
   }
 
   // Si l'utilisateur doit changer son mot de passe et ce n'est pas la route de changement
   if (req.user.doit_changer_mot_passe && !req.path.includes('/changer-mot-passe')) {
-    return res.status(403).json({
-      erreur: 'Vous devez changer votre mot de passe avant de continuer',
-      code: 'CHANGEMENT_MOT_PASSE_REQUIS',
-      action_requise: 'changer_mot_passe'
-    });
+    const businessError = ErrorHandler.createBusinessError(
+      'Vous devez changer votre mot de passe avant de continuer',
+      'CHANGEMENT_MOT_PASSE_REQUIS',
+      403,
+      [
+        'Utilisez l\'endpoint /api/auth/changer-mot-passe',
+        'Assurez-vous de fournir votre ancien mot de passe',
+        'Le nouveau mot de passe doit respecter les exigences de sécurité'
+      ]
+    );
+    businessError.action_requise = 'changer_mot_passe';
+    const context = {
+      operation: 'password_change_requirement',
+      user_id: req.user.id
+    };
+    return ErrorHandler.formatBusinessError(businessError, res, context);
   }
 
   next();
@@ -152,19 +167,34 @@ const verifierChangementMotPasse = (req, res, next) => {
  */
 const verifierFormulairesoumis = (req, res, next) => {
   if (!req.user) {
-    return res.status(401).json({
-      erreur: 'Authentification requise',
-      code: 'AUTH_REQUISE'
-    });
+    const authError = new Error('Authentification requise');
+    authError.code = 'AUTH_REQUISE';
+    authError.status = 401;
+    const context = {
+      operation: 'form_submission_verification',
+      user_id: 'anonymous'
+    };
+    return ErrorHandler.formatAuthError(authError, res, context);
   }
 
   // Si l'utilisateur n'a pas soumis le formulaire et ce n'est pas la route de soumission
   if (!req.user.a_soumis_formulaire && !req.path.includes('/adhesion/soumettre')) {
-    return res.status(403).json({
-      erreur: 'Vous devez soumettre votre formulaire d\'adhésion avant d\'accéder à cette fonctionnalité',
-      code: 'FORMULAIRE_NON_SOUMIS',
-      action_requise: 'soumettre_formulaire'
-    });
+    const businessError = ErrorHandler.createBusinessError(
+      'Vous devez soumettre votre formulaire d\'adhésion avant d\'accéder à cette fonctionnalité',
+      'FORMULAIRE_NON_SOUMIS',
+      403,
+      [
+        'Utilisez l\'endpoint /api/adhesion/soumettre pour soumettre votre formulaire',
+        'Assurez-vous que tous les champs requis sont remplis',
+        'Vérifiez que vos documents sont correctement téléchargés'
+      ]
+    );
+    businessError.action_requise = 'soumettre_formulaire';
+    const context = {
+      operation: 'form_submission_requirement',
+      user_id: req.user.id
+    };
+    return ErrorHandler.formatBusinessError(businessError, res, context);
   }
 
   next();

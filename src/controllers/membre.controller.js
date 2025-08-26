@@ -34,9 +34,20 @@ class MembreController {
 
       // Vérifier si le formulaire a été soumis
       if (!utilisateur.a_soumis_formulaire) {
-        const error = new Error('Aucun formulaire d\'adhésion trouvé. Veuillez soumettre votre formulaire d\'abord.');
-        error.status = 404;
-        throw error;
+        const businessError = ErrorHandler.createBusinessError(
+          'Aucun formulaire d\'adhésion trouvé',
+          'FORMULAIRE_NON_SOUMIS',
+          404,
+          [
+            'Soumettez d\'abord votre formulaire d\'adhésion',
+            'Utilisez l\'endpoint /api/adhesion/soumettre'
+          ]
+        );
+        const context = {
+          operation: 'get_membership_form',
+          user_id: utilisateurId
+        };
+        return ErrorHandler.formatBusinessError(businessError, res, context);
       }
 
       const formulaire = {
@@ -74,7 +85,11 @@ class MembreController {
       });
 
     } catch (error) {
-      next(error);
+      const context = {
+        operation: 'get_membership_form',
+        user_id: req.utilisateur?.id
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 
@@ -98,9 +113,20 @@ class MembreController {
 
       // Vérifier que le membre est approuvé
       if (utilisateur.statut !== 'APPROUVE') {
-        const error = new Error('Carte de membre non disponible. Votre demande d\'adhésion n\'est pas encore approuvée.');
-        error.status = 404;
-        throw error;
+        const businessError = ErrorHandler.createBusinessError(
+          'Carte de membre non disponible',
+          'ADHESION_NON_APPROUVEE',
+          404,
+          [
+            'Votre demande d\'adhésion doit d\'abord être approuvée',
+            'Contactez un secrétaire pour connaître le statut de votre demande'
+          ]
+        );
+        const context = {
+          operation: 'get_membership_card',
+          user_id: utilisateurId
+        };
+        return ErrorHandler.formatBusinessError(businessError, res, context);
       }
 
       // Récupérer la signature du président active
@@ -132,7 +158,11 @@ class MembreController {
       });
 
     } catch (error) {
-      next(error);
+      const context = {
+        operation: 'get_membership_form',
+        user_id: req.utilisateur?.id
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 
@@ -171,7 +201,11 @@ class MembreController {
       });
 
     } catch (error) {
-      next(error);
+      const context = {
+        operation: 'get_membership_form',
+        user_id: req.utilisateur?.id
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 
@@ -370,7 +404,11 @@ class MembreController {
       });
 
     } catch (error) {
-      next(error);
+      const context = {
+        operation: 'get_membership_form',
+        user_id: req.utilisateur?.id
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
   }
 
