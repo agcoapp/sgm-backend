@@ -573,6 +573,9 @@ class ControleurSecretaire {
             statut: user.statut,
             code_formulaire: user.code_formulaire,
             soumis_le: user.modifie_le,
+            raison_rejet: user.raison_rejet,
+            rejete_le: user.rejete_le,
+            rejete_par: user.rejete_par,
             formulaire_actuel: user.formulaires_adhesion[0] || null
           })),
           pagination: {
@@ -983,6 +986,9 @@ class ControleurSecretaire {
         where: { id: id_utilisateur },
         data: {
           statut: 'REJETE',
+          raison_rejet: raison,
+          rejete_le: new Date(),
+          rejete_par: idSecretaire,
           modifie_le: new Date()
         }
       });
