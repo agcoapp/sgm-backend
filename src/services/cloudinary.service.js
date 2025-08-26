@@ -250,6 +250,42 @@ class CloudinaryService {
       return null;
     }
   }
+
+  /**
+   * Generate signed upload signature for frontend uploads
+   * @param {Object} params - Upload parameters
+   */
+  generateSignature(params = {}) {
+    if (!this.isConfigured) {
+      logger.warn('Cloudinary not configured - returning mock signature');
+      return {
+        signature: 'mock_signature',
+        timestamp: Math.round((new Date()).getTime() / 1000),
+        api_key: 'mock_api_key',
+        cloud_name: 'mock_cloud_name'
+      };
+    }
+
+    const timestamp = Math.round((new Date()).getTime() / 1000);
+    const uploadParams = {
+      timestamp,
+      upload_preset: 'sgm_preset_formulaires_adhesion',
+      ...params
+    };
+
+    const signature = cloudinary.utils.api_sign_request(
+      uploadParams, 
+      process.env.CLOUDINARY_API_SECRET
+    );
+
+    return {
+      signature,
+      timestamp,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      upload_preset: 'sgm_preset_formulaires_adhesion'
+    };
+  }
 }
 
 module.exports = new CloudinaryService();
