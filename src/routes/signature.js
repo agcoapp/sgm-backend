@@ -9,15 +9,27 @@ const router = express.Router();
  * /api/signature:
  *   get:
  *     summary: Generate Cloudinary upload signature
- *     description: Generate signed upload credentials for secure frontend file uploads to Cloudinary
+ *     description: |
+ *       Generate signed upload credentials for secure frontend file uploads to Cloudinary.
+ *       Supports custom public_id for controlled file naming and organization.
  *     tags: [Signature]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
+ *         name: public_id
+ *         schema:
+ *           type: string
+ *         description: |
+ *           Custom public ID for the uploaded file (optional).
+ *           Allows controlled naming and organization of files.
+ *           Example: "formulaires/user_123/adhesion_form_v2"
+ *         example: "formulaires/user_123/adhesion_form"
+ *       - in: query
  *         name: folder
  *         schema:
- *         description: Cloudinary folder for upload
+ *           type: string
+ *         description: Cloudinary folder for upload (deprecated - use public_id instead)
  *         example: "documents"
  *       - in: query
  *         name: resource_type
@@ -46,25 +58,30 @@ const router = express.Router();
  *             schema:
  *               type: object
  *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     signature:
- *                       type: string
- *                       description: Signed upload signature
- *                     timestamp:
- *                       type: number
- *                       description: Unix timestamp
- *                       example: 1672531200
- *                     api_key:
- *                       type: string
- *                       description: Cloudinary API key
- *                     cloud_name:
- *                       type: string
- *                       description: Cloudinary cloud name
+ *                 signature:
+ *                   type: string
+ *                   description: Signed upload signature for Cloudinary
+ *                   example: "1a2b3c4d5e6f7g8h9i0j..."
+ *                 timestamp:
+ *                   type: integer
+ *                   description: Unix timestamp used in signature generation
+ *                   example: 1672531200
+ *                 api_key:
+ *                   type: string
+ *                   description: Cloudinary API key
+ *                   example: "123456789012345"
+ *                 cloud_name:
+ *                   type: string
+ *                   description: Cloudinary cloud name
+ *                   example: "sgm-gabon"
+ *                 upload_preset:
+ *                   type: string
+ *                   description: Cloudinary upload preset
+ *                   example: "sgm_preset_formulaires_adhesion"
+ *                 public_id:
+ *                   type: string
+ *                   description: Custom public ID (only returned if provided in request)
+ *                   example: "formulaires/user_123/adhesion_form"
  *       401:
  *         description: Authentication required
  *       500:
