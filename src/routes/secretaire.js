@@ -208,42 +208,130 @@ router.post('/marquer-paye',
  * /api/secretaire/membres:
  *   get:
  *     summary: Lister tous les membres
- *     description: Liste de tous les membres avec filtres optionnels
+ *     description: Liste de tous les membres avec filtres optionnels incluant le statut d'activité
  *     tags: [Members]
  *     security:
  *       - BearerAuth: []
  *     parameters:
  *       - in: query
- *         name: statut
+ *         name: filtre
  *         schema:
  *           type: string
- *           enum: [EN_ATTENTE, APPROUVE, REJETE]
- *         description: Filtrer par statut
+ *           enum: [tous, paye, non_paye, formulaire_soumis, approuve, en_attente, actifs, desactives]
+ *           default: tous
+ *         description: |
+ *           Filtrer les membres par critères:
+ *           - **tous**: Tous les membres
+ *           - **paye**: Membres ayant payé
+ *           - **non_paye**: Membres n'ayant pas payé
+ *           - **formulaire_soumis**: Membres ayant soumis leur formulaire
+ *           - **approuve**: Membres avec statut APPROUVE
+ *           - **en_attente**: Membres avec statut EN_ATTENTE
+ *           - **actifs**: Membres actifs (est_actif = true)
+ *           - **desactives**: Membres désactivés (est_actif = false)
  *       - in: query
- *         name: a_paye
+ *         name: recherche
  *         schema:
- *           type: boolean
- *         description: Filtrer par statut de paiement
+ *           type: string
+ *         description: Recherche par nom, prénom, téléphone, email ou numéro d'adhésion
  *       - in: query
- *         name: a_soumis_formulaire
+ *         name: page
  *         schema:
- *           type: boolean
- *         description: Filtrer par soumission de formulaire
+ *           type: integer
+ *           default: 1
+ *         description: Numéro de page
+ *       - in: query
+ *         name: limite
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Nombre d'éléments par page
  *     responses:
  *       200:
- *         description: Liste des membres récupérée
+ *         description: Liste des membres récupérée avec statut d'activité
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 membres:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/User'
- *                 total:
- *                   type: integer
- *                   example: 150
+ *                 message:
+ *                   type: string
+ *                   example: "Liste des membres récupérée"
+ *                 donnees:
+ *                   type: object
+ *                   properties:
+ *                     membres:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           nom_complet:
+ *                             type: string
+ *                             example: "Jean Claude Mbongo"
+ *                           prenoms:
+ *                             type: string
+ *                           nom:
+ *                             type: string
+ *                           telephone:
+ *                             type: string
+ *                           email:
+ *                             type: string
+ *                           nom_utilisateur:
+ *                             type: string
+ *                           numero_adhesion:
+ *                             type: string
+ *                           statut:
+ *                             type: string
+ *                             enum: [EN_ATTENTE, APPROUVE, REJETE]
+ *                           role:
+ *                             type: string
+ *                             enum: [MEMBRE, SECRETAIRE_GENERALE, PRESIDENT]
+ *                           a_paye:
+ *                             type: boolean
+ *                           a_soumis_formulaire:
+ *                             type: boolean
+ *                           a_identifiants:
+ *                             type: boolean
+ *                             description: True si l'utilisateur a des identifiants de connexion
+ *                           est_actif:
+ *                             type: boolean
+ *                             description: True si le compte est actif, false si désactivé
+ *                           desactive_le:
+ *                             type: string
+ *                             format: date-time
+ *                             nullable: true
+ *                             description: Date de désactivation du compte
+ *                           desactive_par:
+ *                             type: integer
+ *                             nullable: true
+ *                             description: ID du secrétaire qui a désactivé le compte
+ *                           raison_desactivation:
+ *                             type: string
+ *                             nullable: true
+ *                             description: Raison de la désactivation du compte
+ *                           derniere_connexion:
+ *                             type: string
+ *                             format: date-time
+ *                             nullable: true
+ *                           cree_le:
+ *                             type: string
+ *                             format: date-time
+ *                           modifie_le:
+ *                             type: string
+ *                             format: date-time
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         limite:
+ *                           type: integer
+ *                         total:
+ *                           type: integer
+ *                         pages_total:
+ *                           type: integer
  *       401:
  *         description: Non autorisé
  *         content:
@@ -263,51 +351,126 @@ router.get('/membres',
  * /api/secretaire/formulaires:
  *   get:
  *     summary: Lister formulaires d'adhésion
- *     description: Liste tous les formulaires d'adhésion soumis avec filtres
+ *     description: Liste tous les formulaires d'adhésion soumis avec filtres incluant les informations de statut d'activité et de rejet
  *     tags: [Forms]
  *     security:
  *       - BearerAuth: []
  *     parameters:
  *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Numéro de page
+ *       - in: query
+ *         name: limite
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Nombre d'éléments par page
+ *       - in: query
  *         name: statut
  *         schema:
  *           type: string
- *           enum: [EN_ATTENTE, APPROUVE, REJETE]
+ *           enum: [tous, en_attente, approuve, rejete]
+ *           default: tous
  *         description: Filtrer par statut de formulaire
+ *       - in: query
+ *         name: recherche
+ *         schema:
+ *           type: string
+ *         description: Recherche par nom, prénom, téléphone ou email
  *     responses:
  *       200:
- *         description: Liste des formulaires récupérée
+ *         description: Liste des formulaires récupérée avec statut d'activité et informations de rejet
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 formulaires:
- *                   type: array
- *                   items:
- *                     allOf:
- *                       - $ref: '#/components/schemas/User'
- *                       - type: object
+ *                 message:
+ *                   type: string
+ *                   example: "Liste des formulaires récupérée"
+ *                 donnees:
+ *                   type: object
+ *                   properties:
+ *                     formulaires:
+ *                       type: array
+ *                       items:
+ *                         type: object
  *                         properties:
- *                           date_soumission:
+ *                           id:
+ *                             type: integer
+ *                           nom_complet:
+ *                             type: string
+ *                             example: "Jean Claude Mbongo"
+ *                           email:
+ *                             type: string
+ *                           telephone:
+ *                             type: string
+ *                           statut:
+ *                             type: string
+ *                             enum: [EN_ATTENTE, APPROUVE, REJETE]
+ *                           code_formulaire:
+ *                             type: string
+ *                           soumis_le:
  *                             type: string
  *                             format: date-time
- *                             example: "2025-08-13T10:30:00Z"
- *                           photos_urls:
+ *                             description: Date de soumission du formulaire
+ *                           raison_rejet:
+ *                             type: string
+ *                             nullable: true
+ *                             description: Raison du rejet si le formulaire est rejeté
+ *                           rejete_le:
+ *                             type: string
+ *                             format: date-time
+ *                             nullable: true
+ *                             description: Date de rejet du formulaire
+ *                           rejete_par:
+ *                             type: integer
+ *                             nullable: true
+ *                             description: ID du secrétaire qui a rejeté le formulaire
+ *                           est_actif:
+ *                             type: boolean
+ *                             description: True si le compte utilisateur est actif
+ *                           desactive_le:
+ *                             type: string
+ *                             format: date-time
+ *                             nullable: true
+ *                             description: Date de désactivation du compte
+ *                           desactive_par:
+ *                             type: integer
+ *                             nullable: true
+ *                             description: ID du secrétaire qui a désactivé le compte
+ *                           raison_desactivation:
+ *                             type: string
+ *                             nullable: true
+ *                             description: Raison de la désactivation du compte
+ *                           formulaire_actuel:
  *                             type: object
+ *                             nullable: true
  *                             properties:
- *                               id_front:
+ *                               id:
+ *                                 type: integer
+ *                               numero_version:
+ *                                 type: integer
+ *                               url_image_formulaire:
  *                                 type: string
- *                                 example: "https://res.cloudinary.com/..."
- *                               id_back:
+ *                                 description: URL du PDF du formulaire
+ *                               cree_le:
  *                                 type: string
- *                                 example: "https://res.cloudinary.com/..."
- *                               selfie:
- *                                 type: string
- *                                 example: "https://res.cloudinary.com/..."
- *                 total:
- *                   type: integer
- *                   example: 25
+ *                                 format: date-time
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         limite:
+ *                           type: integer
+ *                         total:
+ *                           type: integer
+ *                         pages_total:
+ *                           type: integer
  *       401:
  *         description: Non autorisé
  *         content:
@@ -846,7 +1009,7 @@ router.get('/formulaires-approuves',
  * /api/secretaire/membres-approuves:
  *   get:
  *     summary: Liste des membres approuvés
- *     description: Lister tous les membres approuvés avec recherche
+ *     description: Lister tous les membres approuvés et actifs avec recherche (inclut les informations de statut d'activité)
  *     tags: [Members]
  *     security:
  *       - BearerAuth: []
@@ -870,7 +1033,7 @@ router.get('/formulaires-approuves',
  *         description: Recherche par nom, prénom, numéro d'adhésion ou code formulaire
  *     responses:
  *       200:
- *         description: Liste des membres approuvés
+ *         description: Liste des membres approuvés avec statut d'activité
  *         content:
  *           application/json:
  *             schema:
@@ -887,10 +1050,43 @@ router.get('/formulaires-approuves',
  *                         type: string
  *                       nom_complet:
  *                         type: string
+ *                       prenoms:
+ *                         type: string
+ *                       nom:
+ *                         type: string
+ *                       telephone:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       code_formulaire:
+ *                         type: string
+ *                       photo_profil_url:
+ *                         type: string
+ *                       carte_emise_le:
+ *                         type: string
+ *                         format: date-time
  *                       nom_utilisateur:
  *                         type: string
  *                       derniere_connexion:
  *                         type: string
+ *                         format: date-time
+ *                       est_actif:
+ *                         type: boolean
+ *                         description: True si le compte est actif (toujours true pour cet endpoint)
+ *                         example: true
+ *                       desactive_le:
+ *                         type: string
+ *                         format: date-time
+ *                         nullable: true
+ *                         description: Date de désactivation (toujours null pour cet endpoint)
+ *                       desactive_par:
+ *                         type: integer
+ *                         nullable: true
+ *                         description: ID du secrétaire qui a désactivé (toujours null pour cet endpoint)
+ *                       raison_desactivation:
+ *                         type: string
+ *                         nullable: true
+ *                         description: Raison de désactivation (toujours null pour cet endpoint)
  *                 pagination:
  *                   $ref: '#/components/schemas/Pagination'
  */

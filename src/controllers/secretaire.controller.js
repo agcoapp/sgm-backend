@@ -427,6 +427,12 @@ class ControleurSecretaire {
         case 'en_attente':
           conditionsFiltre = { statut: 'EN_ATTENTE' };
           break;
+        case 'actifs':
+          conditionsFiltre = { est_actif: true };
+          break;
+        case 'desactives':
+          conditionsFiltre = { est_actif: false };
+          break;
       }
 
       // Construire les conditions de recherche
@@ -458,6 +464,10 @@ class ControleurSecretaire {
           a_soumis_formulaire: true,
           doit_changer_mot_passe: true,
           derniere_connexion: true,
+          est_actif: true,
+          desactive_le: true,
+          desactive_par: true,
+          raison_desactivation: true,
           cree_le: true,
           modifie_le: true
         },
@@ -478,7 +488,11 @@ class ControleurSecretaire {
           membres: membres.map(membre => ({
             ...membre,
             nom_complet: `${membre.prenoms} ${membre.nom}`,
-            a_identifiants: !!membre.nom_utilisateur
+            a_identifiants: !!membre.nom_utilisateur,
+            est_actif: membre.est_actif,
+            desactive_le: membre.desactive_le,
+            desactive_par: membre.desactive_par,
+            raison_desactivation: membre.raison_desactivation
           })),
           pagination: {
             page: parseInt(page),
@@ -576,6 +590,10 @@ class ControleurSecretaire {
             raison_rejet: user.raison_rejet,
             rejete_le: user.rejete_le,
             rejete_par: user.rejete_par,
+            est_actif: user.est_actif,
+            desactive_le: user.desactive_le,
+            desactive_par: user.desactive_par,
+            raison_desactivation: user.raison_desactivation,
             formulaire_actuel: user.formulaires_adhesion[0] || null
           })),
           pagination: {
@@ -1335,7 +1353,11 @@ class ControleurSecretaire {
           photo_profil_url: true,
           carte_emise_le: true,
           derniere_connexion: true,
-          nom_utilisateur: true
+          nom_utilisateur: true,
+          est_actif: true,
+          desactive_le: true,
+          desactive_par: true,
+          raison_desactivation: true
         },
         orderBy: {
           nom: 'asc'
