@@ -23,19 +23,21 @@ const router = express.Router();
  *     description: |
  *       Soumettre une demande d'adhésion complète avec le nouveau workflow :
  *       
- *       **Workflow Frontend-Driven Smart :**
- *       1. Frontend génère le PDF du formulaire d'adhésion
- *       2. Frontend upload le PDF sur Cloudinary et récupère l'URL
- *       3. Frontend envoie les données + URL du PDF via cette API
- *       4. Serveur détecte automatiquement si c'est une nouvelle soumission ou resoumission
- *       5. Serveur stocke/met à jour tout en une seule transaction atomique
+ *       **Workflow Frontend-Driven (Secretary-Created Users Only) :**
+ *       1. **PRÉREQUIS**: Utilisateur doit être créé par le secrétariat d'abord
+ *       2. Frontend génère le PDF du formulaire d'adhésion
+ *       3. Frontend upload le PDF sur Cloudinary et récupère l'URL
+ *       4. Frontend envoie les données + URL du PDF via cette API
+ *       5. Serveur met à jour l'utilisateur existant créé par le secrétariat
  *       
- *       **Gestion intelligente :**
- *       - Nouvelle soumission si téléphone inexistant
- *       - Resoumission automatique si statut REJETE
- *       - Erreur si statut EN_ATTENTE ou APPROUVE (évite doublons)
+ *       **Règles métier importantes :**
+ *       - Seul le secrétaire peut créer des utilisateurs
+ *       - Cet endpoint ne crée JAMAIS de nouveaux utilisateurs
+ *       - Met à jour les utilisateurs existants avec les données du formulaire
+ *       - Première soumission: Met à jour utilisateur + marque comme soumis
+ *       - Resoumission: Possible seulement si statut REJETE
  *       
- *       **Avantages :** Un seul endpoint, détection automatique, pas de génération PDF serveur.
+ *       **Avantages :** Contrôle strict, pas de création non autorisée, workflow sécurisé.
  *     tags: [Adhesion]
  *     requestBody:
  *       required: true
@@ -256,8 +258,8 @@ const router = express.Router();
  *                       message: "L'URL du formulaire PDF est requise"
  *                     - champ: "telephone"
  *                       message: "Format de téléphone invalide. Seuls les chiffres et le + sont autorisés"
- *       409:
- *         description: Membre avec ce numéro de carte consulaire existe déjà
+ *       404:
+ *         description: Utilisateur non créé par le secrétariat
  *         content:
  *           application/json:
  *             schema:
@@ -265,10 +267,37 @@ const router = express.Router();
  *               properties:
  *                 error:
  *                   type: string
- *                   example: "Un membre avec ce numéro de carte consulaire existe déjà"
+ *                   example: "Utilisateur non trouvé"
  *                 code:
  *                   type: string
- *                   example: "MEMBRE_EXISTE_DEJA"
+ *                   example: "UTILISATEUR_NON_CREE_PAR_SECRETAIRE"
+ *                 message:
+ *                   type: string
+ *                   example: "Votre profil doit d'abord être créé par le secrétariat avant de pouvoir soumettre un formulaire"
+ *                 details:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example:
+ *                     - "Contactez le secrétariat pour créer votre profil"
+ *                     - "Assurez-vous d'utiliser le même numéro de téléphone que celui fourni au secrétariat"
+ *                     - "Vérifiez le format de votre numéro de téléphone"
+ *       409:
+ *         description: |-
+ *           Utilisateur existe avec un statut incompatible. Erreurs possibles:
+ *           - Formulaire déjà soumis et en cours d'examen
+ *           - Membre déjà approuvé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Une demande avec ce numéro de téléphone est déjà en cours d'examen"
+ *                 code:
+ *                   type: string
+ *                   example: "DEMANDE_EN_COURS"
  */
 router.post(
   '/soumettre',

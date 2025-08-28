@@ -98,118 +98,29 @@ class AdhesionController {
             message: 'Vous êtes déjà membre de l\'association'
           });
         }
+      } else {
+        // BUSINESS RULE: Seul le secrétaire peut créer des utilisateurs
+        // Si aucun utilisateur n'est trouvé, cela signifie qu'il n'a pas été créé par le secrétaire
+        logger.warn(`Tentative de soumission de formulaire pour un utilisateur non créé par le secrétaire - téléphone: ${donneesValidees.telephone}`);
+        
+        return res.status(404).json({
+          error: 'Utilisateur non trouvé',
+          code: 'UTILISATEUR_NON_CREE_PAR_SECRETAIRE',
+          message: 'Votre profil doit d\'abord être créé par le secrétariat avant de pouvoir soumettre un formulaire',
+          details: [
+            'Contactez le secrétariat pour créer votre profil',
+            'Assurez-vous d\'utiliser le même numéro de téléphone que celui fourni au secrétariat',
+            'Vérifiez le format de votre numéro de téléphone'
+          ]
+        });
       }
 
-      // Créer l'enregistrement utilisateur (statut EN_ATTENTE, pas de numéro d'adhésion)
-      const nouvelUtilisateur = await prisma.utilisateur.create({
-        data: {
-          prenoms: donneesValidees.prenoms,
-          nom: donneesValidees.nom,
-          date_naissance: convertirDateFrancaise(donneesValidees.date_naissance),
-          lieu_naissance: donneesValidees.lieu_naissance,
-          adresse: donneesValidees.adresse,
-          profession: donneesValidees.profession,
-          ville_residence: donneesValidees.ville_residence,
-          date_entree_congo: convertirDateFrancaise(donneesValidees.date_entree_congo),
-          employeur_ecole: donneesValidees.employeur_ecole,
-          telephone: donneesValidees.telephone,
-          numero_carte_consulaire: donneesValidees.numero_carte_consulaire || null,
-          date_emission_piece: convertirDateFrancaise(donneesValidees.date_emission_piece) || null,
-          prenom_conjoint: donneesValidees.prenom_conjoint || null,
-          nom_conjoint: donneesValidees.nom_conjoint || null,
-          nombre_enfants: donneesValidees.nombre_enfants || 0,
-          selfie_photo_url: donneesValidees.selfie_photo_url || null,
-          signature_url: donneesValidees.signature_url || null,
-          commentaire: donneesValidees.commentaire || null,
-          statut: 'EN_ATTENTE',
-          role: 'MEMBRE',
-          a_soumis_formulaire: true // Marquer comme formulaire soumis
-        }
-      });
-
-      // Les photos ET le PDF sont maintenant fournis par le frontend
-      logger.info(`Demande d'adhésion créée pour l'utilisateur ${nouvelUtilisateur.id} avec PDF depuis frontend`);
-
-      // Créer le snapshot des données pour le formulaire d'adhésion
-      const snapshotDonnees = {
-        prenoms: donneesValidees.prenoms,
-        nom: donneesValidees.nom,
-        date_naissance: donneesValidees.date_naissance,
-        lieu_naissance: donneesValidees.lieu_naissance,
-        adresse: donneesValidees.adresse,
-        profession: donneesValidees.profession,
-        ville_residence: donneesValidees.ville_residence,
-        date_entree_congo: donneesValidees.date_entree_congo,
-        employeur_ecole: donneesValidees.employeur_ecole,
-        telephone: donneesValidees.telephone,
-        numero_carte_consulaire: donneesValidees.numero_carte_consulaire,
-        date_emission_piece: donneesValidees.date_emission_piece,
-        prenom_conjoint: donneesValidees.prenom_conjoint,
-        nom_conjoint: donneesValidees.nom_conjoint,
-        nombre_enfants: donneesValidees.nombre_enfants,
-        selfie_photo_url: donneesValidees.selfie_photo_url,
-        signature_url: donneesValidees.signature_url,
-        commentaire: donneesValidees.commentaire,
-        url_image_formulaire: donneesValidees.url_image_formulaire
-      };
-
-      // Le PDF est maintenant fourni par le frontend - plus de génération serveur
-
-      // Créer la première version du formulaire d'adhésion
-      const formulaireAdhesion = await prisma.formulaireAdhesion.create({
-        data: {
-          utilisateur: {
-            connect: { id: nouvelUtilisateur.id }
-          },
-          numero_version: 1,
-          url_image_formulaire: donneesValidees.url_image_formulaire,
-          donnees_snapshot: snapshotDonnees,
-          est_version_active: true
-        }
-      });
-
-      // Créer journal d'audit
-      await prisma.journalAudit.create({
-        data: {
-          id_utilisateur: nouvelUtilisateur.id,
-          action: 'DEMANDE_ADHESION',
-          details: {
-            telephone: donneesValidees.telephone,
-            numero_carte_consulaire: donneesValidees.numero_carte_consulaire,
-            formulaire_soumis: true,
-            pdf_fourni_par_frontend: true,
-            url_pdf: donneesValidees.url_image_formulaire
-          },
-          adresse_ip: req.ip,
-          agent_utilisateur: req.get('User-Agent')
-        }
-      });
-
-      logger.info(`Demande d'adhésion soumise pour ${donneesValidees.prenoms} ${donneesValidees.nom} (ID: ${nouvelUtilisateur.id})`);
-
-      // TODO: Envoyer notifications SMS et email au demandeur
-      // TODO: Envoyer notification aux administrateurs
-
-      res.status(201).json({
-        message: 'Demande d\'adhésion soumise avec succès',
-        adhesion: {
-          id: nouvelUtilisateur.id,
-          reference_temporaire: `TEMP_${nouvelUtilisateur.id}`,
-          nom_complet: `${donneesValidees.prenoms} ${donneesValidees.nom}`,
-          telephone: donneesValidees.telephone,
-          numero_carte_consulaire: donneesValidees.numero_carte_consulaire,
-          statut: nouvelUtilisateur.statut,
-          date_soumission: nouvelUtilisateur.cree_le,
-          url_fiche_adhesion: donneesValidees.url_image_formulaire // URL de téléchargement du PDF
-        },
-        prochaines_etapes: [
-          'Votre demande d\'adhésion est en cours d\'examen par le secrétariat',
-          'Un numéro d\'adhésion vous sera attribué après approbation',
-          'Vous recevrez des notifications par email/SMS sur l\'avancement de votre dossier',
-          'Pour suivre votre demande en ligne, vous pouvez créer un compte sur notre application'
-        ],
-        // peut_creer_compte: true, // COMMENTÉ - Plus nécessaire sans Clerk
-        message_important: 'Un numéro d\'adhésion définitif vous sera attribué après validation de votre demande'
+      // Cette ligne ne devrait jamais être atteinte car tous les cas sont traités ci-dessus
+      logger.error(`ERREUR: Cas non traité dans soumettreDemande pour utilisateur avec téléphone: ${donneesValidees.telephone}`);
+      return res.status(500).json({
+        error: 'Erreur de logique interne',
+        code: 'CAS_NON_TRAITE',
+        message: 'Une erreur inattendue s\'est produite lors du traitement de votre formulaire'
       });
 
     } catch (error) {
