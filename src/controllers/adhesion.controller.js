@@ -66,9 +66,16 @@ class AdhesionController {
       // Note: Le numéro d'adhésion sera généré lors de l'approbation par le secrétaire
       
       // Vérifier si l'utilisateur existe déjà (pour resoumission)
+      logger.info(`DEBUG - Recherche utilisateur avec téléphone: "${donneesValidees.telephone}"`);
       const utilisateurExistant = await prisma.utilisateur.findFirst({
         where: { telephone: donneesValidees.telephone }
       });
+
+      if (utilisateurExistant) {
+        logger.info(`DEBUG - Utilisateur trouvé: ID=${utilisateurExistant.id}, statut=${utilisateurExistant.statut}, a_soumis_formulaire=${utilisateurExistant.a_soumis_formulaire}, tel_db="${utilisateurExistant.telephone}"`);
+      } else {
+        logger.info(`DEBUG - Aucun utilisateur trouvé avec ce téléphone - va créer un nouvel utilisateur`);
+      }
 
       if (utilisateurExistant) {
         if (utilisateurExistant.statut === 'REJETE') {
@@ -780,6 +787,8 @@ class AdhesionController {
 
       // Utiliser une transaction pour garantir l'atomicité
       const result = await prisma.$transaction(async (tx) => {
+        logger.info(`DEBUT transaction première soumission pour utilisateur ${utilisateurExistant.id}`);
+        
         // 1. Mettre à jour l'utilisateur existant avec les données du formulaire
         const utilisateurMisAJour = await tx.utilisateur.update({
           where: { 
@@ -811,6 +820,8 @@ class AdhesionController {
           }
         });
 
+        logger.info(`Utilisateur ${utilisateurExistant.id} mis à jour avec a_soumis_formulaire: ${utilisateurMisAJour.a_soumis_formulaire}`);
+
         // 2. Créer l'enregistrement du formulaire d'adhésion
         const formulaireAdhesion = await tx.formulaireAdhesion.create({
           data: {
@@ -820,6 +831,8 @@ class AdhesionController {
             donnees_snapshot: snapshotDonnees
           }
         });
+
+        logger.info(`Formulaire d'adhésion créé avec ID: ${formulaireAdhesion.id}`);
 
         // 3. Enregistrer l'action dans le journal d'audit
         await tx.journalAudit.create({
@@ -838,6 +851,7 @@ class AdhesionController {
           }
         });
 
+        logger.info(`FIN transaction première soumission pour utilisateur ${utilisateurExistant.id} - SUCCÈS`);
         return { utilisateurMisAJour, formulaireAdhesion };
       });
 

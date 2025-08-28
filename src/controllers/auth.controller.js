@@ -681,6 +681,8 @@ class AuthController {
         }
       });
 
+      logger.info(`DEBUG - Status check for user ${req.user.id}: a_soumis_formulaire = ${utilisateurComplet?.a_soumis_formulaire}, statut = ${utilisateurComplet?.statut}`);
+
       if (!utilisateurComplet) {
         const context = {
           operation: 'get_user_status',
