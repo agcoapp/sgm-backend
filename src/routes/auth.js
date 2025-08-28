@@ -272,8 +272,10 @@ router.get('/profil', authentifierJWT, authController.obtenirProfil);
  * @swagger
  * /api/auth/statut:
  *   get:
- *     summary: Obtenir statut utilisateur
- *     description: Obtenir le statut de l'utilisateur authentifié
+ *     summary: Obtenir statut utilisateur complet
+ *     description: |
+ *       Obtenir le statut complet de l'utilisateur authentifié incluant les informations 
+ *       de formulaire d'adhésion pour redirection frontend appropriée
  *     tags: [Authentication]
  *     security:
  *       - BearerAuth: []
@@ -285,15 +287,84 @@ router.get('/profil', authentifierJWT, authController.obtenirProfil);
  *             schema:
  *               type: object
  *               properties:
- *                 statut:
- *                   type: string
- *                   enum: [EN_ATTENTE, APPROUVE, REJETE]
- *                   example: "APPROUVE"
+ *                 authentifie:
+ *                   type: boolean
+ *                   example: true
+ *                 utilisateur:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     nom_utilisateur:
+ *                       type: string
+ *                     nom_complet:
+ *                       type: string
+ *                       example: "Jean Claude Mbongo"
+ *                     role:
+ *                       type: string
+ *                       enum: [MEMBRE, SECRETAIRE_GENERALE, PRESIDENT]
+ *                     statut:
+ *                       type: string
+ *                       enum: [EN_ATTENTE, APPROUVE, REJETE]
+ *                     est_actif:
+ *                       type: boolean
+ *                       description: True si le compte est actif
  *                 doit_changer_mot_passe:
  *                   type: boolean
+ *                   description: True si l'utilisateur doit changer son mot de passe
  *                   example: false
- *                 a_soumis_formulaire:
+ *                 doit_soumettre_formulaire:
  *                   type: boolean
+ *                   description: True si l'utilisateur doit soumettre son formulaire
+ *                   example: false
+ *                 statut_formulaire:
+ *                   type: object
+ *                   description: Informations détaillées sur le statut du formulaire d'adhésion
+ *                   properties:
+ *                     soumis:
+ *                       type: boolean
+ *                       description: True si le formulaire a été soumis
+ *                     statut:
+ *                       type: string
+ *                       enum: [EN_ATTENTE, APPROUVE, REJETE]
+ *                       description: Statut d'approbation du formulaire
+ *                     code_formulaire:
+ *                       type: string
+ *                       nullable: true
+ *                       description: Code du formulaire si approuvé
+ *                       example: "N°001/AGCO/M/2025"
+ *                     carte_emise_le:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       description: Date d'émission de la carte de membre
+ *                     raison_rejet:
+ *                       type: string
+ *                       nullable: true
+ *                       description: Raison du rejet si applicable
+ *                     rejete_le:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       description: Date de rejet si applicable
+ *                     rejete_par:
+ *                       type: integer
+ *                       nullable: true
+ *                       description: ID du secrétaire qui a rejeté
+ *                 prochaine_action:
+ *                   type: string
+ *                   enum: [CHANGER_MOT_PASSE, SOUMETTRE_FORMULAIRE, ATTENDRE_APPROBATION, REVOIR_REJET, ACCES_COMPLET]
+ *                   description: |
+ *                     Action que l'utilisateur doit effectuer ensuite:
+ *                     - CHANGER_MOT_PASSE: Changer le mot de passe temporaire
+ *                     - SOUMETTRE_FORMULAIRE: Soumettre le formulaire d'adhésion  
+ *                     - ATTENDRE_APPROBATION: Formulaire en attente d'approbation
+ *                     - REVOIR_REJET: Consulter les raisons de rejet et resoumetre
+ *                     - ACCES_COMPLET: Accès complet à l'application
+ *                   example: "ACCES_COMPLET"
+ *                 compte_actif:
+ *                   type: boolean
+ *                   description: True si le compte utilisateur est actif
  *                   example: true
  *       401:
  *         description: Non autorisé

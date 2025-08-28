@@ -264,7 +264,11 @@ class ServiceAuthentification {
           nom_complet: `${utilisateur.prenoms} ${utilisateur.nom}`,
           role: utilisateur.role,
           doit_changer_mot_passe: utilisateur.doit_changer_mot_passe,
-          a_soumis_formulaire: utilisateur.a_soumis_formulaire
+          a_soumis_formulaire: utilisateur.a_soumis_formulaire,
+          statut: utilisateur.statut,
+          raison_rejet: utilisateur.raison_rejet,
+          rejete_le: utilisateur.rejete_le,
+          est_actif: utilisateur.est_actif
         }
       };
 

@@ -655,20 +655,77 @@ class AuthController {
           authentifie: false,
           utilisateur: null,
           doit_changer_mot_passe: false,
-          doit_soumettre_formulaire: false
+          doit_soumettre_formulaire: false,
+          statut_formulaire: null
         });
+      }
+
+      // Fetch complete user data including form status
+      const utilisateurComplet = await prisma.utilisateur.findUnique({
+        where: { id: req.user.id },
+        select: {
+          id: true,
+          nom_utilisateur: true,
+          prenoms: true,
+          nom: true,
+          role: true,
+          statut: true,
+          doit_changer_mot_passe: true,
+          a_soumis_formulaire: true,
+          raison_rejet: true,
+          rejete_le: true,
+          rejete_par: true,
+          est_actif: true,
+          code_formulaire: true,
+          carte_emise_le: true
+        }
+      });
+
+      if (!utilisateurComplet) {
+        const context = {
+          operation: 'get_user_status',
+          user_id: req.user.id
+        };
+        return ErrorHandler.notFound(res, 'Utilisateur', context);
+      }
+
+      // Determine what the user should do next
+      let prochaine_action = null;
+      if (utilisateurComplet.doit_changer_mot_passe) {
+        prochaine_action = 'CHANGER_MOT_PASSE';
+      } else if (!utilisateurComplet.a_soumis_formulaire) {
+        prochaine_action = 'SOUMETTRE_FORMULAIRE';
+      } else if (utilisateurComplet.statut === 'EN_ATTENTE') {
+        prochaine_action = 'ATTENDRE_APPROBATION';
+      } else if (utilisateurComplet.statut === 'REJETE') {
+        prochaine_action = 'REVOIR_REJET';
+      } else if (utilisateurComplet.statut === 'APPROUVE') {
+        prochaine_action = 'ACCES_COMPLET';
       }
 
       res.json({
         authentifie: true,
         utilisateur: {
-          id: req.user.id,
-          nom_utilisateur: req.user.nom_utilisateur,
-          role: req.user.role,
-          statut: req.user.statut
+          id: utilisateurComplet.id,
+          nom_utilisateur: utilisateurComplet.nom_utilisateur,
+          nom_complet: `${utilisateurComplet.prenoms} ${utilisateurComplet.nom}`,
+          role: utilisateurComplet.role,
+          statut: utilisateurComplet.statut,
+          est_actif: utilisateurComplet.est_actif
         },
-        doit_changer_mot_passe: req.user.doit_changer_mot_passe,
-        doit_soumettre_formulaire: !req.user.a_soumis_formulaire
+        doit_changer_mot_passe: utilisateurComplet.doit_changer_mot_passe,
+        doit_soumettre_formulaire: !utilisateurComplet.a_soumis_formulaire,
+        statut_formulaire: {
+          soumis: utilisateurComplet.a_soumis_formulaire,
+          statut: utilisateurComplet.statut,
+          code_formulaire: utilisateurComplet.code_formulaire,
+          carte_emise_le: utilisateurComplet.carte_emise_le,
+          raison_rejet: utilisateurComplet.raison_rejet,
+          rejete_le: utilisateurComplet.rejete_le,
+          rejete_par: utilisateurComplet.rejete_par
+        },
+        prochaine_action,
+        compte_actif: utilisateurComplet.est_actif
       });
 
     } catch (error) {

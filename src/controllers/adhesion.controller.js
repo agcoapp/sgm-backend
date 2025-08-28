@@ -74,12 +74,16 @@ class AdhesionController {
         if (utilisateurExistant.statut === 'REJETE') {
           // Cas de resoumission après rejet
           return this.traiterResoumission(req, res, utilisateurExistant, donneesValidees);
-        } else if (utilisateurExistant.statut === 'EN_ATTENTE') {
+        } else if (utilisateurExistant.statut === 'EN_ATTENTE' && utilisateurExistant.a_soumis_formulaire) {
+          // Formulaire déjà soumis et en cours d'examen
           return res.status(409).json({
             error: 'Une demande avec ce numéro de téléphone est déjà en cours d\'examen',
             code: 'DEMANDE_EN_COURS',
             message: 'Veuillez patienter pendant l\'examen de votre demande actuelle'
           });
+        } else if (utilisateurExistant.statut === 'EN_ATTENTE' && !utilisateurExistant.a_soumis_formulaire) {
+          // Utilisateur créé par secrétaire mais n'a pas encore soumis le formulaire
+          return this.traiterPremiereSubmission(req, res, utilisateurExistant, donneesValidees);
         } else if (utilisateurExistant.statut === 'APPROUVE') {
           return res.status(409).json({
             error: 'Une demande avec ce numéro de téléphone a déjà été approuvée',
@@ -735,6 +739,143 @@ class AdhesionController {
         error: 'Erreur lors de la resoumission du formulaire',
         code: 'ERREUR_RESOUMISSION',
         message: 'Une erreur est survenue lors du traitement de votre resoumission'
+      });
+    }
+  }
+
+  /**
+   * Traiter la première soumission d'un utilisateur créé par le secrétaire
+   */
+  async traiterPremiereSubmission(req, res, utilisateurExistant, donneesValidees) {
+    try {
+      // Convertir les dates en objets Date
+      const convertirDateFrancaise = (dateString) => {
+        if (!dateString) return null;
+        const [jour, mois, annee] = dateString.split('/');
+        return new Date(`${annee}-${mois.padStart(2, '0')}-${jour.padStart(2, '0')}`);
+      };
+
+      // Créer le snapshot des données pour le formulaire d'adhésion
+      const snapshotDonnees = {
+        prenoms: donneesValidees.prenoms,
+        nom: donneesValidees.nom,
+        date_naissance: donneesValidees.date_naissance,
+        lieu_naissance: donneesValidees.lieu_naissance,
+        adresse: donneesValidees.adresse,
+        profession: donneesValidees.profession,
+        ville_residence: donneesValidees.ville_residence,
+        date_entree_congo: donneesValidees.date_entree_congo,
+        employeur_ecole: donneesValidees.employeur_ecole,
+        telephone: donneesValidees.telephone,
+        numero_carte_consulaire: donneesValidees.numero_carte_consulaire,
+        date_emission_piece: donneesValidees.date_emission_piece,
+        prenom_conjoint: donneesValidees.prenom_conjoint,
+        nom_conjoint: donneesValidees.nom_conjoint,
+        nombre_enfants: donneesValidees.nombre_enfants,
+        selfie_photo_url: donneesValidees.selfie_photo_url,
+        signature_url: donneesValidees.signature_url,
+        commentaire: donneesValidees.commentaire,
+        url_image_formulaire: donneesValidees.url_image_formulaire
+      };
+
+      // Utiliser une transaction pour garantir l'atomicité
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Mettre à jour l'utilisateur existant avec les données du formulaire
+        const utilisateurMisAJour = await tx.utilisateur.update({
+          where: { 
+            id: utilisateurExistant.id,
+            // Vérifier que le formulaire n'a pas été soumis pendant qu'on attendait
+            a_soumis_formulaire: false
+          },
+          data: {
+            prenoms: donneesValidees.prenoms,
+            nom: donneesValidees.nom,
+            date_naissance: convertirDateFrancaise(donneesValidees.date_naissance),
+            lieu_naissance: donneesValidees.lieu_naissance,
+            adresse: donneesValidees.adresse,
+            profession: donneesValidees.profession,
+            ville_residence: donneesValidees.ville_residence,
+            date_entree_congo: convertirDateFrancaise(donneesValidees.date_entree_congo),
+            employeur_ecole: donneesValidees.employeur_ecole,
+            telephone: donneesValidees.telephone,
+            numero_carte_consulaire: donneesValidees.numero_carte_consulaire || null,
+            date_emission_piece: convertirDateFrancaise(donneesValidees.date_emission_piece) || null,
+            prenom_conjoint: donneesValidees.prenom_conjoint || null,
+            nom_conjoint: donneesValidees.nom_conjoint || null,
+            nombre_enfants: donneesValidees.nombre_enfants || 0,
+            selfie_photo_url: donneesValidees.selfie_photo_url || null,
+            signature_url: donneesValidees.signature_url || null,
+            commentaire: donneesValidees.commentaire || null,
+            a_soumis_formulaire: true, // Marquer comme formulaire soumis
+            modifie_le: new Date()
+          }
+        });
+
+        // 2. Créer l'enregistrement du formulaire d'adhésion
+        const formulaireAdhesion = await tx.formulaireAdhesion.create({
+          data: {
+            id_utilisateur: utilisateurExistant.id,
+            numero_version: 1, // Première version
+            url_image_formulaire: donneesValidees.url_image_formulaire,
+            donnees_snapshot: snapshotDonnees
+          }
+        });
+
+        // 3. Enregistrer l'action dans le journal d'audit
+        await tx.journalAudit.create({
+          data: {
+            id_utilisateur: utilisateurExistant.id,
+            action: 'PREMIERE_SOUMISSION_FORMULAIRE',
+            details: {
+              utilisateur_cree_par_secretaire: true,
+              telephone: donneesValidees.telephone,
+              pdf_fourni_par_frontend: true,
+              url_pdf: donneesValidees.url_image_formulaire,
+              formulaire_id: formulaireAdhesion.id
+            },
+            adresse_ip: req.ip,
+            agent_utilisateur: req.get('User-Agent')
+          }
+        });
+
+        return { utilisateurMisAJour, formulaireAdhesion };
+      });
+
+      logger.info(`Première soumission réussie pour ${donneesValidees.prenoms} ${donneesValidees.nom} (ID: ${utilisateurExistant.id})`);
+
+      res.json({
+        message: 'Formulaire soumis avec succès',
+        adhesion: {
+          id: result.utilisateurMisAJour.id,
+          reference_temporaire: `TEMP_${result.utilisateurMisAJour.id}`,
+          nom_complet: `${donneesValidees.prenoms} ${donneesValidees.nom}`,
+          telephone: donneesValidees.telephone,
+          statut: result.utilisateurMisAJour.statut,
+          date_soumission: result.utilisateurMisAJour.modifie_le,
+          url_fiche_adhesion: donneesValidees.url_image_formulaire
+        },
+        prochaines_etapes: [
+          'Votre formulaire d\'adhésion a été soumis avec succès',
+          'Il sera examiné par notre équipe dans les plus brefs délais',
+          'Vous recevrez une notification dès qu\'une décision sera prise'
+        ]
+      });
+
+    } catch (error) {
+      if (error.code === 'P2025') {
+        // Erreur Prisma: Record not found (formulaire déjà soumis par un autre processus)
+        return res.status(409).json({
+          error: 'Le formulaire a déjà été soumis',
+          code: 'FORMULAIRE_DEJA_SOUMIS',
+          message: 'Votre formulaire d\'adhésion a déjà été soumis. Veuillez vérifier votre statut.'
+        });
+      }
+
+      logger.error('Erreur traitement première soumission:', error);
+      res.status(500).json({
+        error: 'Erreur lors de la soumission du formulaire',
+        code: 'ERREUR_PREMIERE_SOUMISSION',
+        message: 'Une erreur est survenue lors du traitement de votre formulaire'
       });
     }
   }
