@@ -41,7 +41,14 @@ class AdhesionController {
       });
 
       // Validation des données du formulaire
+      logger.info('DEBUG - Début validation Zod du formulaire d\'adhésion');
       const donneesValidees = adhesionSchema.parse(req.body);
+      logger.info('DEBUG - Validation Zod réussie, données validées:', {
+        prenoms: donneesValidees.prenoms,
+        nom: donneesValidees.nom,
+        telephone: donneesValidees.telephone,
+        url_image_formulaire: donneesValidees.url_image_formulaire ? 'présent' : 'manquant'
+      });
 
       // Note: Les photos ET le PDF du formulaire sont maintenant des URLs Cloudinary
       // La validation des URLs se fait dans le schema Zod (selfie_photo_url, signature_url, url_image_formulaire)
@@ -133,7 +140,15 @@ class AdhesionController {
 
     } catch (error) {
       if (error.name === 'ZodError') {
-        logger.warn('Erreur validation demande adhésion:', error.errors);
+        logger.error('VALIDATION ÉCHOUÉE - Erreur Zod dans soumettreDemande:', {
+          errors: error.errors,
+          received_data_sample: {
+            prenoms: req.body.prenoms,
+            nom: req.body.nom,
+            telephone: req.body.telephone,
+            url_image_formulaire: req.body.url_image_formulaire ? 'présent' : 'manquant'
+          }
+        });
         return res.status(400).json({
           error: 'Données invalides',
           code: 'ERREUR_VALIDATION',
