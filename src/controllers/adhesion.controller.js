@@ -66,9 +66,17 @@ class AdhesionController {
       // Note: Le numéro d'adhésion sera généré lors de l'approbation par le secrétaire
       
       // Vérifier si l'utilisateur existe déjà (pour resoumission)
-      logger.info(`DEBUG - Recherche utilisateur avec téléphone: "${donneesValidees.telephone}"`);
+      // IMPORTANT: Normaliser le téléphone pour la recherche (même logique que Zod transform)
+      const telephoneNormalise = donneesValidees.telephone.replace(/\s+/g, '');
+      logger.info(`DEBUG - Recherche utilisateur avec téléphone: "${donneesValidees.telephone}" -> normalisé: "${telephoneNormalise}"`);
+      
       const utilisateurExistant = await prisma.utilisateur.findFirst({
-        where: { telephone: donneesValidees.telephone }
+        where: { 
+          OR: [
+            { telephone: donneesValidees.telephone }, // Format original
+            { telephone: telephoneNormalise }         // Format sans espaces
+          ]
+        }
       });
 
       if (utilisateurExistant) {
