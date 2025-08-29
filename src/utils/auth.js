@@ -2,11 +2,16 @@ const { betterAuth } = require("better-auth");
 const { prismaAdapter } = require("better-auth/adapters/prisma");
 const { username } = require("better-auth/plugins");
 const prisma = require('../config/database');
+const logger = require('../config/logger');
 
 const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  logger: {
+    level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
+    disabled: false
+  },
   // Enable email and password authentication
   emailAndPassword: {
     enabled: true,

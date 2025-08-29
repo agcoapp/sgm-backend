@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:22.7.0-alpine
 
 # Create app directory
 WORKDIR /app
@@ -6,8 +6,11 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
+# Vider le cache npm (pour vider le cache)
+RUN npm cache clean --force
+
 # Install dependencies
-RUN npm ci --only=production
+RUN npm install --omit=dev
 
 # Copy source code
 COPY . .

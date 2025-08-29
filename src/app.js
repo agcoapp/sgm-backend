@@ -17,6 +17,7 @@ const signatureRoutes = require('./routes/signature'); // Routes signatures Clou
 const invitationRoutes = require('./routes/invitation'); // Routes invitations RBAC
 const userRoutes = require('./routes/user'); // Routes utilisateur avec better-auth
 const adminRoutes = require('./routes/admin'); // Routes admin avec RBAC
+const setupRoutes = require('./routes/setup'); // Routes setup helpers
 
 // Swagger documentation
 const { specs, swaggerUi } = require('./config/swagger');
@@ -78,6 +79,7 @@ app.use('/api/signature', signatureRoutes); // Routes signatures Cloudinary
 app.use('/api/invitations', invitationRoutes); // Routes invitations RBAC
 app.use('/api/user', userRoutes); // Routes utilisateur avec better-auth
 app.use('/api/admin', adminRoutes); // Routes admin avec RBAC
+app.use('/api/setup', setupRoutes); // Routes setup helpers
 
 // Swagger documentation routes
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {

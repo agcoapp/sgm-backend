@@ -12,7 +12,7 @@ model User {
   id            String    @id @default(cuid())
   name          String?   // Better-auth field (first + last name)
   email         String    @unique // Better-auth field
-  emailVerified DateTime? // Better-auth field
+  emailVerified Boolean? // Better-auth field
   image         String?   // Better-auth field (profile photo URL)
   createdAt     DateTime  @default(now()) // Better-auth field
   updatedAt     DateTime  @updatedAt // Better-auth field
@@ -155,37 +155,38 @@ enum OfficialDocumentType {
   INTERNAL_REGULATIONS
 }
 
-// Better-Auth Account model
+// Better-Auth Account model (matches better-auth expectations)
 model Account {
   id                String  @id @default(cuid())
+  accountId         String  @unique
+  providerId        String
   userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
+  accessToken       String? @map("access_token") @db.Text
+  refreshToken      String? @map("refresh_token") @db.Text
+  idToken           String? @map("id_token") @db.Text
+  accessTokenExpiresAt DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
   scope             String?
-  id_token          String? @db.Text
-  session_state     String?
+  password          String? @db.Text
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([provider, providerAccountId])
+  @@unique([providerId, accountId])
   @@map("account")
 }
 
-// Better-Auth Session model
+// Better-Auth Session model (matches better-auth expectations)
 model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique @map("token")
-  userId       String
-  expires      DateTime @map("expiresAt")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
