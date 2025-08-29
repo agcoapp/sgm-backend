@@ -7,161 +7,204 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Utilisateur {
-  id                     Int       @id @default(autoincrement())
-  // clerkId                String?   @unique // ID Clerk pour sync - COMMENTÉ
-  numero_adhesion        String?   @unique // Numéro d'adhésion autogénéré
+// Better-Auth User model with SGM fields merged in
+model User {
+  id            String    @id @default(cuid())
+  name          String?   // Better-auth field (first + last name)
+  email         String    @unique // Better-auth field
+  emailVerified DateTime? // Better-auth field
+  image         String?   // Better-auth field (profile photo URL)
+  createdAt     DateTime  @default(now()) // Better-auth field
+  updatedAt     DateTime  @updatedAt // Better-auth field
   
-  // Informations personnelles
-  prenoms                String    // Prénoms
-  nom                    String    // Nom de famille  
-  photo_profil_url       String?   // Photo de profil (uploadée ou prise sur place)
-  date_naissance         DateTime? // Date de naissance
-  lieu_naissance         String?   // Lieu de naissance
-  adresse                String?   // Adresse
+  // SGM-specific fields (all in English)
+  membership_number      String?   @unique // Auto-generated membership number
+  birth_date             DateTime? // Date of birth
+  birth_place            String?   // Place of birth
+  address                String?   // Address
   profession             String?   // Profession
-  ville_residence        String?   // Ville de résidence
-  date_entree_congo      DateTime? // Date d'entrée au Congo
-  employeur_ecole        String?   // Employeur/Université/École
-  telephone              String    // Numéro de téléphone (requis)
-  
-  // Informations carte consulaire (optionnelles)
-  numero_carte_consulaire String?   @unique // Numéro de la carte consulaire (optionnel)
-  date_emission_piece     DateTime? // Date d'émission de la carte consulaire (optionnelle)
-  
-  // Photos et signature
-  selfie_photo_url        String?   // Photo selfie uniquement (plus de photo pièce d'identité)
-  signature_url           String?   // Signature du membre (cloudinary link)
-  commentaire             String?   // Commentaire optionnel (max 100 caractères)
-  
-  // Informations familiales
-  prenom_conjoint        String?   // Prénom du conjoint
-  nom_conjoint           String?   // Nom du conjoint
-  nombre_enfants         Int?      // Nombre d'enfants
-  
-  // Champs système
-  email                  String?   @unique // Email optionnel (pour récupération mot de passe)
-  signature_membre_url   String?   // URL de la signature du membre (optionnelle)
-  statut                 Statut    @default(EN_ATTENTE)
-  role                   Role      @default(MEMBRE)
-  code_formulaire        String?   @unique
-  url_qr_code            String?
-  carte_emise_le         DateTime?
-  raison_rejet           String?   // Raison du rejet si statut = REJETE
-  rejete_le              DateTime? // Date de rejet
-  rejete_par             Int?      // ID du secrétaire qui a rejeté
-  
-  // Authentification locale
-  nom_utilisateur        String?   @unique // Nom d'utilisateur généré par secrétaire
-  mot_passe_hash         String?   // Hash du mot de passe
-  mot_passe_temporaire   String?   // Mot de passe temporaire (SENSIBLE - accès SG/Président uniquement)
-  doit_changer_mot_passe Boolean   @default(false) // True si première connexion
-  a_change_mot_passe_temporaire Boolean @default(false) // True si a déjà changé le mot de passe temporaire
-  a_paye                 Boolean   @default(false) // True si a payé physiquement
-  a_soumis_formulaire    Boolean   @default(false) // True si a soumis le formulaire
-  derniere_connexion     DateTime? // Dernière connexion
-  est_actif              Boolean   @default(true) // True si compte actif, False si désactivé
-  desactive_le           DateTime? // Date de désactivation
-  desactive_par          Int?      // ID du secrétaire qui a désactivé
-  raison_desactivation   String?   // Raison de la désactivation
-  
-  cree_le                DateTime  @default(now())
-  modifie_le             DateTime  @updatedAt
+  city_residence         String?   // City of residence
+  congo_entry_date       DateTime? // Date of entry to Congo
+  employer_school        String?   // Employer/University/School
+  phone                  String?   // Phone number
+  consular_card_number   String?   @unique // Consular card number
+  id_issue_date          DateTime? // ID issue date
+  selfie_photo_url       String?   // Selfie photo URL
+  member_signature_url   String?   // Member signature URL
+  comments               String?   // Optional comments
+  spouse_first_name      String?   // Spouse first name
+  spouse_last_name       String?   // Spouse last name
+  children_count         Int?      // Number of children
+  status                 Status    @default(PENDING)
+  role                   Role      @default(MEMBER)
+  form_code              String?   @unique // Form reference code
+  qr_code_url            String?   // QR code URL
+  card_issued_at         DateTime? // Card issue date
+  rejection_reason       String?   // Rejection reason if status = REJECTED
+  rejected_at            DateTime? // Rejection date
+  rejected_by            String?   // ID of admin who rejected
+  username               String?   @unique // Username for better-auth
+  has_paid               Boolean   @default(false) // True if paid physically
+  has_submitted_form     Boolean   @default(false) // True if submitted form
+  last_login             DateTime? // Last login
+  is_active              Boolean   @default(true) // True if account active
+  deactivated_at         DateTime? // Deactivation date
+  deactivated_by         String?   // ID of admin who deactivated
+  deactivation_reason    String?   // Deactivation reason
 
-  // Relations
+  // Better-Auth relations
+  accounts Account[]
+  sessions Session[]
+  
+  // SGM Relations  
   signatures             Signature[]
-  journaux_audit         JournalAudit[]
-  formulaires_adhesion   FormulaireAdhesion[]
-  tokens_recuperation    TokenRecuperation[]
-  textes_officiels       TexteOfficiel[]
+  audit_logs             AuditLog[]
+  membership_forms       MembershipForm[]
+  recovery_tokens        RecoveryToken[]
+  official_documents     OfficialDocument[]
+  invitationsSent        Invitation[] @relation("InvitationsSent")
+
+  @@map("user")
 }
 
 model Signature {
   id                 Int       @id @default(autoincrement())
-  id_president       Int
-  url_signature      String
-  cloudinary_id      String    // Pour supprimer de Cloudinary si besoin
-  est_active         Boolean   @default(true)
-  telecharge_le      DateTime  @default(now())
+  president_id       String    // Changed to String to match User.id
+  signature_url      String
+  cloudinary_id      String    // For deleting from Cloudinary if needed
+  is_active          Boolean   @default(true)
+  uploaded_at        DateTime  @default(now())
 
-  utilisateur        Utilisateur @relation(fields: [id_president], references: [id])
+  user               User @relation(fields: [president_id], references: [id])
 }
 
-model JournalAudit {
+model AuditLog {
   id              Int       @id @default(autoincrement())
-  id_utilisateur  Int?
-  action          String    // ADHESION, APPROUVER, REJETER, ASSIGNER_CODE, etc.
-  details         Json?     // Détails supplémentaires
-  adresse_ip      String?
-  agent_utilisateur String?
-  cree_le         DateTime  @default(now())
+  user_id         String?   // Changed to String to match User.id
+  action          String    // MEMBERSHIP, APPROVE, REJECT, ASSIGN_CODE, etc.
+  details         Json?     // Additional details
+  ip_address      String?
+  user_agent      String?
+  created_at      DateTime  @default(now())
 
-  utilisateur     Utilisateur? @relation(fields: [id_utilisateur], references: [id])
+  user            User? @relation(fields: [user_id], references: [id])
 }
 
-model FormulaireAdhesion {
+model MembershipForm {
   id                   Int       @id @default(autoincrement())
-  id_utilisateur       Int
-  numero_version       Int       // Version 1, 2, 3, etc.
-  url_image_formulaire String    // URL de l'image générée du formulaire
-  donnees_snapshot     Json      // Snapshot des données utilisées pour générer cette version
-  est_version_active   Boolean   @default(true) // Version actuelle (une seule active par utilisateur)
-  cree_le             DateTime   @default(now())
+  user_id              String    // Changed to String to match User.id
+  version_number       Int       // Version 1, 2, 3, etc.
+  form_image_url       String    // URL of generated form image
+  data_snapshot        Json      // Snapshot of data used to generate this version
+  is_active_version    Boolean   @default(true) // Current version (only one active per user)
+  created_at           DateTime  @default(now())
   
-  utilisateur         Utilisateur @relation(fields: [id_utilisateur], references: [id])
+  user                 User @relation(fields: [user_id], references: [id])
   
-  @@unique([id_utilisateur, numero_version])
+  @@unique([user_id, version_number])
 }
 
-model TokenRecuperation {
+model RecoveryToken {
   id             Int       @id @default(autoincrement())
-  id_utilisateur Int
+  user_id        String    // Changed to String to match User.id
   token          String    @unique
-  expire_le      DateTime
-  utilise        Boolean   @default(false)
-  cree_le        DateTime  @default(now())
+  expires_at     DateTime
+  used           Boolean   @default(false)
+  created_at     DateTime  @default(now())
   
-  utilisateur    Utilisateur @relation(fields: [id_utilisateur], references: [id])
+  user           User @relation(fields: [user_id], references: [id])
 }
 
-model TexteOfficiel {
+model OfficialDocument {
   id                 Int       @id @default(autoincrement())
-  titre              String    // Titre du document
-  description        String?   // Description optionnelle
-  type_document      TypeDocumentOfficiel // Type de document
-  url_cloudinary     String    // URL du fichier PDF sur Cloudinary
-  cloudinary_id      String    // ID Cloudinary pour gestion/suppression
-  taille_fichier     Int?      // Taille du fichier en bytes
-  nom_fichier_original String  // Nom original du fichier
+  title              String    // Document title
+  description        String?   // Optional description
+  document_type      OfficialDocumentType // Document type
+  cloudinary_url     String    // PDF file URL on Cloudinary
+  cloudinary_id      String    // Cloudinary ID for management/deletion
+  file_size          Int?      // File size in bytes
+  original_filename  String    // Original file name
   
-  // Informations d'upload
-  telecharge_par     Int       // ID du secrétaire qui a uploadé
-  telecharge_le      DateTime  @default(now())
-  modifie_le         DateTime  @updatedAt
+  // Upload information
+  uploaded_by        String    // Changed to String - ID of secretary who uploaded
+  uploaded_at        DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
   
-  // Statut et visibilité
-  est_actif          Boolean   @default(true) // True si visible aux membres
+  // Status and visibility
+  is_active          Boolean   @default(true) // True if visible to members
   
   // Relations
-  utilisateur        Utilisateur @relation(fields: [telecharge_par], references: [id])
+  user               User @relation(fields: [uploaded_by], references: [id])
 }
 
-enum Statut {
-  EN_ATTENTE
-  APPROUVE
-  REJETE
+enum Status {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum Role {
-  MEMBRE
-  SECRETAIRE_GENERALE
-  PRESIDENT
+  MEMBER
+  ADMIN
 }
 
-enum TypeDocumentOfficiel {
-  PV_REUNION
-  COMPTE_RENDU
+enum OfficialDocumentType {
+  MEETING_MINUTES
+  REPORT
   DECISION
-  REGLEMENT_INTERIEUR
+  INTERNAL_REGULATIONS
+}
+
+// Better-Auth Account model
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("account")
+}
+
+// Better-Auth Session model
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("token")
+  userId       String
+  expires      DateTime @map("expiresAt")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+// Invitation model for RBAC system
+model Invitation {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  role       Role     @default(MEMBER)
+  invitedBy  String   // ID of the admin who sent the invitation
+  expiresAt  DateTime
+  status     String   @default("pending") // pending, accepted, expired
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  inviter    User     @relation("InvitationsSent", fields: [invitedBy], references: [id])
+
+  @@map("invitation")
 }
 

@@ -1,5 +1,4 @@
 const express = require('express');
-const multer = require('multer');
 const adhesionController = require('../controllers/adhesion.controller');
 const { uploadLimiter } = require('../middleware/security');
 

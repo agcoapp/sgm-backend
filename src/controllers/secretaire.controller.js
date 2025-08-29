@@ -3,8 +3,6 @@ const logger = require('../config/logger');
 const serviceAuth = require('../services/auth.service');
 const emailService = require('../services/email.service');
 const ErrorHandler = require('../utils/errorHandler');
-const pdfGeneratorService = require('../services/pdf-generator.service');
-const cloudinaryService = require('../services/cloudinary.service');
 const { creerIdentifiantsSchema, creerNouveauMembreSchema } = require('../schemas/auth.schema');
 
 class ControleurSecretaire {

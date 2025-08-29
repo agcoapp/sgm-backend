@@ -93,21 +93,21 @@ class AuthController {
         return ErrorHandler.formatBusinessError(validationError, res, context);
       }
 
-      // Récupérer l'utilisateur
-      const utilisateur = await prisma.utilisateur.findUnique({
+      // Get the user
+      const user = await prisma.user.findUnique({
         where: { id: utilisateurId }
       });
 
-      if (!utilisateur) {
+      if (!user) {
         const context = {
           operation: 'user_lookup',
           user_id: utilisateurId
         };
-        return ErrorHandler.notFound(res, 'Utilisateur', context);
+        return ErrorHandler.notFound(res, 'User', context);
       }
 
-      // Vérifier que l'utilisateur doit changer son mot de passe
-      if (!utilisateur.doit_changer_mot_passe) {
+      // Check if user must change password
+      if (!user.must_change_password) {
         const authError = new Error('Vous n\'êtes pas autorisé à utiliser cet endpoint');
         authError.code = 'NON_AUTORISE';
         authError.status = 403;
@@ -118,8 +118,8 @@ class AuthController {
         return ErrorHandler.formatAuthorizationError(authError, res, context);
       }
 
-      // Vérifier que l'utilisateur n'a pas déjà changé son mot de passe temporaire
-      if (utilisateur.a_change_mot_passe_temporaire) {
+      // Check if user has already changed temporary password
+      if (user.has_changed_temp_password) {
         const businessError = ErrorHandler.createBusinessError(
           'Vous avez déjà changé votre mot de passe temporaire',
           'DEJA_CHANGE',

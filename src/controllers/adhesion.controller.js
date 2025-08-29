@@ -1,9 +1,6 @@
 // const { getAuth } = require('../config/clerk'); // COMMENTÉ - Clerk remplacé par auth locale
 const prisma = require('../config/database');
 const logger = require('../config/logger');
-const cloudinaryService = require('../services/cloudinary.service');
-const pdfGeneratorService = require('../services/pdf-generator.service');
-const templateService = require('../services/template.service');
 const { adhesionSchema, validerFichiersAdhesion } = require('../schemas/user.schema');
 
 // Fonction utilitaire pour convertir DD-MM-YYYY en Date

@@ -1,19 +1,22 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const { toNodeHandler } = require("better-auth/node");
+const { auth } = require('./utils/auth');
 const logger = require('./config/logger');
 const { helmet, generalLimiter } = require('./middleware/security');
-// const { clerkMiddleware } = require('./config/clerk'); // COMMENTÉ - Clerk remplacé par auth locale
 
 // Routes
 const healthRoutes = require('./routes/health');
 const authRoutes = require('./routes/auth'); // Routes auth locale (remplace Clerk)
 const secretaireRoutes = require('./routes/secretaire'); // Routes tableau de bord secrétaire
 const membreRoutes = require('./routes/membre'); // Routes membre
-const registrationRoutes = require('./routes/registration');
 const adhesionRoutes = require('./routes/adhesion');
 const texteOfficielRoutes = require('./routes/texte-officiel'); // Routes textes officiels
 const signatureRoutes = require('./routes/signature'); // Routes signatures Cloudinary
+const invitationRoutes = require('./routes/invitation'); // Routes invitations RBAC
+const userRoutes = require('./routes/user'); // Routes utilisateur avec better-auth
+const adminRoutes = require('./routes/admin'); // Routes admin avec RBAC
 
 // Swagger documentation
 const { specs, swaggerUi } = require('./config/swagger');
@@ -35,7 +38,10 @@ app.use(cors({
   optionsSuccessStatus: 200 // For legacy browser support
 }));
 
-// Body parsing middleware
+// Better Auth handler - MUST be before express.json() middleware
+app.all("/api/auth/*", toNodeHandler(auth));
+
+// Body parsing middleware (after Better Auth handler)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -62,13 +68,16 @@ if (!fs.existsSync(logsDir)) {
 
 // Routes
 app.use('/api/health', healthRoutes);
-app.use('/api/auth', authRoutes); // Routes authentification locale
+// app.use('/api/auth', authRoutes); // COMMENTED - Auth now handled by better-auth
 app.use('/api/secretaire', secretaireRoutes); // Routes tableau de bord secrétaire
 app.use('/api/membre', membreRoutes); // Routes membre
-app.use('/api/register', registrationRoutes);
+// app.use('/api/register', registrationRoutes); // REMOVED - Registration handled by better-auth
 app.use('/api/adhesion', adhesionRoutes);
 app.use('/api/textes-officiels', texteOfficielRoutes); // Routes textes officiels
 app.use('/api/signature', signatureRoutes); // Routes signatures Cloudinary
+app.use('/api/invitations', invitationRoutes); // Routes invitations RBAC
+app.use('/api/user', userRoutes); // Routes utilisateur avec better-auth
+app.use('/api/admin', adminRoutes); // Routes admin avec RBAC
 
 // Swagger documentation routes
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
@@ -113,8 +122,7 @@ app.get('/api', (req, res) => {
       secretaire_creer_identifiants: '/api/secretaire/creer-identifiants (POST) - Créer identifiants',
       adhesion_soumettre: '/api/adhesion/soumettre (POST) - Soumettre demande adhésion',
       adhesion_statut: '/api/adhesion/statut (GET) - Statut demande adhésion',
-      register: '/api/register (POST) - Complete member registration',
-      register_status: '/api/register/status (GET) - Get registration status'
+      // register: '/api/register (POST) - Registration handled by better-auth'
     },
     documentation: 'See README.md for full API documentation'
   });
