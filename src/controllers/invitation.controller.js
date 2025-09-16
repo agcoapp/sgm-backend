@@ -1,140 +1,157 @@
 const prisma = require('../config/database');
 const logger = require('../config/logger');
+const emailService = require('../services/email.service');
+const ErrorHandler = require('../utils/errorHandler');
 const crypto = require('crypto');
 
-/**
- * Create a new invitation
- */
-const createInvitation = async (req, res) => {
-  try {
-    const { email, role } = req.validatedData;
-    const inviterId = req.user.id;
+class InvitationController {
+  /**
+   * Create an invitation (Admin only)
+   */
+  async createInvitation(req, res) {
+    try {
+      const { email, role = 'MEMBER' } = req.body;
+      const adminId = req.user.id;
 
-    // Check if user with this email already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    });
+      if (!email) {
+        const validationError = ErrorHandler.createBusinessError(
+          'Email is required',
+          'EMAIL_REQUIRED',
+          400,
+          ['Provide a valid email address']
+        );
+        const context = {
+          operation: 'create_invitation',
+          user_id: adminId
+        };
+        return ErrorHandler.formatBusinessError(validationError, res, context);
+      }
 
-    if (existingUser) {
-      return res.status(400).json({
-        type: 'validation_error',
-        message: 'Un utilisateur avec cet email existe déjà',
-        code: 'EMAIL_ALREADY_EXISTS'
+      // Check if user already exists
+      const existingUser = await prisma.user.findUnique({
+        where: { email: email.toLowerCase() }
       });
-    }
 
-    // Check if there's already a pending invitation for this email
-    const existingInvitation = await prisma.invitation.findUnique({
-      where: { email }
-    });
+      if (existingUser) {
+        const businessError = ErrorHandler.createBusinessError(
+          'User already exists with this email',
+          'USER_EXISTS',
+          409,
+          ['User already has an account with this email']
+        );
+        const context = {
+          operation: 'create_invitation',
+          user_id: adminId
+        };
+        return ErrorHandler.formatBusinessError(businessError, res, context);
+      }
 
-    if (existingInvitation && existingInvitation.status === 'pending') {
-      return res.status(400).json({
-        type: 'validation_error',
-        message: 'Une invitation est déjà en attente pour cet email',
-        code: 'INVITATION_PENDING'
-      });
-    }
-
-    // Delete any expired invitations for this email
-    if (existingInvitation) {
-      await prisma.invitation.delete({
-        where: { email }
-      });
-    }
-
-    // Create new invitation that expires in 7 days
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    const invitation = await prisma.invitation.create({
-      data: {
-        email,
-        role,
-        invitedBy: inviterId,
-        expiresAt,
-        status: 'pending'
-      },
-      include: {
-        inviter: {
-          select: {
-            id: true,
-            name: true,
-            email: true
+      // Check if invitation already exists
+      const existingInvitation = await prisma.invitation.findFirst({
+        where: {
+          email: email.toLowerCase(),
+          status: 'pending',
+          expiresAt: {
+            gt: new Date()
           }
         }
+      });
+
+      if (existingInvitation) {
+        const businessError = ErrorHandler.createBusinessError(
+          'Active invitation already exists for this email',
+          'INVITATION_EXISTS',
+          409,
+          ['An active invitation already exists for this email']
+        );
+        const context = {
+          operation: 'create_invitation',
+          user_id: adminId
+        };
+        return ErrorHandler.formatBusinessError(businessError, res, context);
       }
-    });
 
-    // Log the invitation creation
-    await prisma.journalAudit.create({
-      data: {
-        id_utilisateur: inviterId,
-        action: 'INVITATION_CREATED',
-        details: {
-          invited_email: email,
-          invited_role: role,
-          invitation_id: invitation.id
-        },
-        adresse_ip: req.ip,
-        agent_utilisateur: req.get('User-Agent')
-      }
-    });
+      // Generate invitation token
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    logger.info('Invitation créée avec succès', {
-      invitation_id: invitation.id,
-      invited_email: email,
-      invited_role: role,
-      inviter_id: inviterId
-    });
+      // Create invitation
+      const invitation = await prisma.invitation.create({
+        data: {
+          email: email.toLowerCase(),
+          role,
+          invitedBy: adminId,
+          token,
+          expiresAt,
+          status: 'pending'
+        }
+      });
 
-    res.status(201).json({
-      type: 'success',
-      message: 'Invitation créée avec succès',
-      data: {
-        invitation: {
+      // Send invitation email
+      const invitationSent = await emailService.sendInvitationEmail(
+        email.toLowerCase(),
+        token,
+        role,
+        expiresAt
+      );
+
+      // Create audit log
+      await prisma.auditLog.create({
+        data: {
+          user_id: adminId,
+          action: 'CREATE_INVITATION',
+          details: {
+            invited_email: email.toLowerCase(),
+            role,
+            invitation_id: invitation.id,
+            email_sent: invitationSent.success
+          },
+          ip_address: req.ip,
+          user_agent: req.get('User-Agent')
+        }
+      });
+
+      logger.info('Invitation created successfully', {
+        admin_id: adminId,
+        invited_email: email.toLowerCase(),
+        role,
+        invitation_id: invitation.id
+      });
+
+      res.status(201).json({
+        message: 'Invitation created successfully',
+        data: {
           id: invitation.id,
           email: invitation.email,
           role: invitation.role,
-          status: invitation.status,
           expiresAt: invitation.expiresAt,
-          createdAt: invitation.createdAt,
-          inviter: invitation.inviter
+          email_sent: invitationSent.success
         }
-      }
-    });
+      });
 
-  } catch (error) {
-    logger.error('Erreur lors de la création de l\'invitation', {
-      error: error.message,
-      stack: error.stack,
-      user_id: req.user?.id
-    });
-
-    res.status(500).json({
-      type: 'server_error',
-      message: 'Erreur lors de la création de l\'invitation',
-      code: 'INVITATION_CREATE_ERROR'
-    });
-  }
-};
-
-/**
- * Get all invitations
- */
-const getInvitations = async (req, res) => {
-  try {
-    const { status, page = 1, limit = 10 } = req.query;
-    const offset = (page - 1) * limit;
-
-    const where = {};
-    if (status) {
-      where.status = status;
+    } catch (error) {
+      const context = {
+        operation: 'create_invitation',
+        user_id: req.user?.id
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
+  }
 
-    const [invitations, total] = await Promise.all([
-      prisma.invitation.findMany({
-        where,
+  /**
+   * Get all invitations (Admin only)
+   */
+  async getInvitations(req, res) {
+    try {
+      const { page = 1, limit = 10, status = 'all' } = req.query;
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+
+      // Build status filter
+      const statusFilter = status === 'all' ? {} : { status };
+
+      // Get invitations
+      const invitations = await prisma.invitation.findMany({
+        where: statusFilter,
         include: {
           inviter: {
             select: {
@@ -144,113 +161,233 @@ const getInvitations = async (req, res) => {
             }
           }
         },
-        orderBy: {
-          createdAt: 'desc'
-        },
-        take: parseInt(limit),
-        skip: offset
-      }),
-      prisma.invitation.count({ where })
-    ]);
-
-    res.json({
-      type: 'success',
-      message: 'Invitations récupérées avec succès',
-      data: {
-        invitations,
-        pagination: {
-          current_page: parseInt(page),
-          total_pages: Math.ceil(total / limit),
-          total_items: total,
-          items_per_page: parseInt(limit)
-        }
-      }
-    });
-
-  } catch (error) {
-    logger.error('Erreur lors de la récupération des invitations', {
-      error: error.message,
-      stack: error.stack,
-      user_id: req.user?.id
-    });
-
-    res.status(500).json({
-      type: 'server_error',
-      message: 'Erreur lors de la récupération des invitations',
-      code: 'INVITATIONS_FETCH_ERROR'
-    });
-  }
-};
-
-/**
- * Delete an invitation
- */
-const deleteInvitation = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user.id;
-
-    // Check if invitation exists
-    const invitation = await prisma.invitation.findUnique({
-      where: { id }
-    });
-
-    if (!invitation) {
-      return res.status(404).json({
-        type: 'not_found_error',
-        message: 'Invitation non trouvée',
-        code: 'INVITATION_NOT_FOUND'
+        orderBy: { createdAt: 'desc' },
+        skip: offset,
+        take: parseInt(limit)
       });
+
+      // Count total for pagination
+      const totalInvitations = await prisma.invitation.count({
+        where: statusFilter
+      });
+
+      // Get statistics
+      const stats = await this.getInvitationStats();
+
+      res.json({
+        message: 'Invitations retrieved successfully',
+        data: {
+          invitations: invitations.map(invitation => ({
+            id: invitation.id,
+            email: invitation.email,
+            role: invitation.role,
+            status: invitation.status,
+            expiresAt: invitation.expiresAt,
+            createdAt: invitation.createdAt,
+            inviter: invitation.inviter,
+            is_expired: invitation.expiresAt < new Date()
+          })),
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: totalInvitations,
+            total_pages: Math.ceil(totalInvitations / parseInt(limit))
+          },
+          statistics: stats
+        }
+      });
+
+    } catch (error) {
+      const context = {
+        operation: 'get_invitations',
+        user_id: req.user?.id
+      };
+      return ErrorHandler.handleError(error, res, context);
     }
-
-    // Delete the invitation
-    await prisma.invitation.delete({
-      where: { id }
-    });
-
-    // Log the invitation deletion
-    await prisma.journalAudit.create({
-      data: {
-        id_utilisateur: userId,
-        action: 'INVITATION_DELETED',
-        details: {
-          deleted_invitation_id: id,
-          invited_email: invitation.email,
-          invited_role: invitation.role
-        },
-        adresse_ip: req.ip,
-        agent_utilisateur: req.get('User-Agent')
-      }
-    });
-
-    logger.info('Invitation supprimée avec succès', {
-      invitation_id: id,
-      deleted_by: userId
-    });
-
-    res.json({
-      type: 'success',
-      message: 'Invitation supprimée avec succès'
-    });
-
-  } catch (error) {
-    logger.error('Erreur lors de la suppression de l\'invitation', {
-      error: error.message,
-      stack: error.stack,
-      user_id: req.user?.id,
-      invitation_id: req.params.id
-    });
-
-    res.status(500).json({
-      type: 'server_error',
-      message: 'Erreur lors de la suppression de l\'invitation',
-      code: 'INVITATION_DELETE_ERROR'
-    });
   }
-};
 
-module.exports = {
-  createInvitation,
-  getInvitations,
-  deleteInvitation
-};
+  /**
+   * Delete an invitation (Admin only)
+   */
+  async deleteInvitation(req, res) {
+    try {
+      const { id } = req.params;
+      const adminId = req.user.id;
+
+      // Get the invitation
+      const invitation = await prisma.invitation.findUnique({
+        where: { id }
+      });
+
+      if (!invitation) {
+        const context = {
+          operation: 'delete_invitation',
+          user_id: adminId,
+          invitation_id: id
+        };
+        return ErrorHandler.notFound(res, 'Invitation', context);
+      }
+
+      // Delete the invitation
+      await prisma.invitation.delete({
+        where: { id }
+      });
+
+      // Create audit log
+      await prisma.auditLog.create({
+        data: {
+          user_id: adminId,
+          action: 'DELETE_INVITATION',
+          details: {
+            deleted_invitation_id: id,
+            deleted_email: invitation.email,
+            deleted_role: invitation.role
+          },
+          ip_address: req.ip,
+          user_agent: req.get('User-Agent')
+        }
+      });
+
+      logger.info('Invitation deleted successfully', {
+        admin_id: adminId,
+        invitation_id: id,
+        invitation_email: invitation.email
+      });
+
+      res.json({
+        message: 'Invitation deleted successfully'
+      });
+
+    } catch (error) {
+      const context = {
+        operation: 'delete_invitation',
+        user_id: req.user?.id,
+        invitation_id: req.params.id
+      };
+      return ErrorHandler.handleError(error, res, context);
+    }
+  }
+
+  /**
+   * Resend invitation email (Admin only)
+   */
+  async resendInvitation(req, res) {
+    try {
+      const { id } = req.params;
+      const adminId = req.user.id;
+
+      // Get the invitation
+      const invitation = await prisma.invitation.findUnique({
+        where: { id }
+      });
+
+      if (!invitation) {
+        const context = {
+          operation: 'resend_invitation',
+          user_id: adminId,
+          invitation_id: id
+        };
+        return ErrorHandler.notFound(res, 'Invitation', context);
+      }
+
+      if (invitation.status !== 'pending') {
+        const businessError = ErrorHandler.createBusinessError(
+          'Only pending invitations can be resent',
+          'INVALID_STATUS',
+          400,
+          ['Invitation must be in pending status to be resent']
+        );
+        const context = {
+          operation: 'resend_invitation',
+          user_id: adminId,
+          invitation_id: id
+        };
+        return ErrorHandler.formatBusinessError(businessError, res, context);
+      }
+
+      // Send invitation email
+      const invitationSent = await emailService.sendInvitationEmail(
+        invitation.email,
+        invitation.token,
+        invitation.role,
+        invitation.expiresAt
+      );
+
+      // Create audit log
+      await prisma.auditLog.create({
+        data: {
+          user_id: adminId,
+          action: 'RESEND_INVITATION',
+          details: {
+            invitation_id: id,
+            invitation_email: invitation.email,
+            email_sent: invitationSent.success
+          },
+          ip_address: req.ip,
+          user_agent: req.get('User-Agent')
+        }
+      });
+
+      logger.info('Invitation resent successfully', {
+        admin_id: adminId,
+        invitation_id: id,
+        invitation_email: invitation.email
+      });
+
+      res.json({
+        message: 'Invitation email resent successfully',
+        data: {
+          email_sent: invitationSent.success
+        }
+      });
+
+    } catch (error) {
+      const context = {
+        operation: 'resend_invitation',
+        user_id: req.user?.id,
+        invitation_id: req.params.id
+      };
+      return ErrorHandler.handleError(error, res, context);
+    }
+  }
+
+  /**
+   * Get invitation statistics
+   */
+  async getInvitationStats() {
+    try {
+      const [
+        totalInvitations,
+        pendingInvitations,
+        acceptedInvitations,
+        expiredInvitations
+      ] = await Promise.all([
+        prisma.invitation.count(),
+        prisma.invitation.count({ where: { status: 'pending' } }),
+        prisma.invitation.count({ where: { status: 'accepted' } }),
+        prisma.invitation.count({
+          where: {
+            status: 'pending',
+            expiresAt: { lt: new Date() }
+          }
+        })
+      ]);
+
+      return {
+        total_invitations: totalInvitations,
+        pending_invitations: pendingInvitations,
+        accepted_invitations: acceptedInvitations,
+        expired_invitations: expiredInvitations
+      };
+
+    } catch (error) {
+      logger.error('Error getting invitation statistics', {
+        error: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
+  }
+}
+
+module.exports = new InvitationController();

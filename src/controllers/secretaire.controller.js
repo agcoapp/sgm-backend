@@ -1,9 +1,7 @@
 const prisma = require('../config/database');
 const logger = require('../config/logger');
-const serviceAuth = require('../services/auth.service');
 const emailService = require('../services/email.service');
 const ErrorHandler = require('../utils/errorHandler');
-const { creerIdentifiantsSchema, creerNouveauMembreSchema } = require('../schemas/auth.schema');
 
 class ControleurSecretaire {
 

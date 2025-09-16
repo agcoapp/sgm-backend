@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for testing
+  sgm-test-db:
+    image: postgres:15-alpine
+    container_name: sgm-test-db
+    environment:
+      POSTGRES_DB: sgm_test_db
+      POSTGRES_USER: sgm_test_user
+      POSTGRES_PASSWORD: sgm_test_password
+    ports:
+      - "5433:5432"  # Different port to avoid conflict with main branch
+    volumes:
+      - sgm_test_db_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - sgm-test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sgm_test_user -d sgm_test_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # SGM Backend API for testing
+  sgm-test-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sgm-test-backend
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: "postgresql://sgm_test_user:sgm_test_password@sgm-test-db:5432/sgm_test_db"
+      PORT: 3000
+      FRONTEND_URL: "http://localhost:3001"
+      CSRF_SECRET: "test-csrf-secret-key-for-better-auth"
+      # Add any other environment variables you need for testing
+    ports:
+      - "3001:3000"  # Different port to avoid conflict with main branch
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+      - ./logs:/app/logs
+      - ./node_modules:/app/node_modules
+    depends_on:
+      sgm-test-db:
+        condition: service_healthy
+    networks:
+      - sgm-test-network
+    command: npm run dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+
+  # Optional: Redis for session storage (if you want to test with Redis)
+  sgm-test-redis:
+    image: redis:7-alpine
+    container_name: sgm-test-redis
+    ports:
+      - "6380:6379"  # Different port to avoid conflict
+    networks:
+      - sgm-test-network
+    command: redis-server --appendonly yes
+    volumes:
+      - sgm_test_redis_data:/data
+
+volumes:
+  sgm_test_db_data:
+    driver: local
+  sgm_test_redis_data:
+    driver: local
+
+networks:
+  sgm-test-network:
+    driver: bridge

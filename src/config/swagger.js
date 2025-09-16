@@ -33,8 +33,10 @@ const options = {
         - Téléchargement PDF des documents
         
         ## 🔐 Authentification:
-        - JWT Bearer Token requis pour les endpoints protégés
-        - Rôles: PRESIDENT, SECRETAIRE_GENERALE, MEMBRE
+        - Session-based authentication avec better-auth
+        - Rôles: ADMIN, MEMBER
+        - Invitation-based registration system
+        - Password management (change, reset, forgot)
         - Comptes désactivés bloqués automatiquement
         
         ## 🗓️ Format de Date:
@@ -65,49 +67,141 @@ const options = {
         BearerAuth: {
           type: 'http',
           scheme: 'bearer',
-          bearerFormat: 'JWT',
-          description: 'Entrez votre token JWT'
+          bearerFormat: 'Session',
+          description: 'Session-based authentication avec better-auth'
         }
       },
       schemas: {
         User: {
           type: 'object',
           properties: {
-            id: { type: 'integer', example: 1 },
-            prenoms: { type: 'string', example: 'Jean claude' },
-            nom: { type: 'string', example: 'MBONGO' },
+            id: { type: 'string', example: 'user_123' },
+            name: { type: 'string', example: 'Jean Claude MBONGO' },
             email: { type: 'string', format: 'email', example: 'jean.mbongo@example.com' },
-            telephone: { type: 'string', example: '+241066123456' },
-            nom_utilisateur: { type: 'string', example: 'jeanclau.mbongo' },
-            role: { type: 'string', enum: ['MEMBRE', 'SECRETAIRE_GENERALE', 'PRESIDENT'] },
-            statut: { type: 'string', enum: ['EN_ATTENTE', 'APPROUVE', 'REJETE'] },
-            numero_carte_consulaire: { type: 'string', example: 'CC123456', description: 'Numéro de carte consulaire (optionnel)' },
-            selfie_photo_url: { type: 'string', example: 'https://res.cloudinary.com/example/image/upload/v123456789/selfie.jpg', description: 'URL Cloudinary de la photo selfie' },
-            signature_url: { type: 'string', example: 'https://res.cloudinary.com/example/image/upload/v123456789/signature.jpg', description: 'URL Cloudinary de la signature' },
-            commentaire: { type: 'string', example: 'Commentaire du membre', maxLength: 100 },
-            a_soumis_formulaire: { type: 'boolean', example: true },
-            a_change_mot_passe_temporaire: { type: 'boolean', example: false, description: 'True si a déjà changé le mot de passe temporaire' }
+            username: { type: 'string', example: 'jeanclau.mbongo' },
+            phone: { type: 'string', example: '+241066123456' },
+            role: { type: 'string', enum: ['MEMBER', 'ADMIN'] },
+            status: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED'] },
+            membership_number: { type: 'string', example: 'SGM-2024-001', description: 'Numéro de membre' },
+            form_code: { type: 'string', example: 'N°001/AGCO/M/2024', description: 'Code du formulaire' },
+            has_paid: { type: 'boolean', example: true, description: 'True si a payé' },
+            has_submitted_form: { type: 'boolean', example: true, description: 'True si a soumis le formulaire' },
+            is_active: { type: 'boolean', example: true, description: 'True si le compte est actif' },
+            last_login: { type: 'string', format: 'date-time', example: '2024-01-15T10:30:00Z' },
+            created_at: { type: 'string', format: 'date-time', example: '2024-01-15T10:30:00Z' },
+            updated_at: { type: 'string', format: 'date-time', example: '2024-01-15T10:30:00Z' }
           }
         },
         LoginRequest: {
           type: 'object',
-          required: ['nom_utilisateur', 'mot_passe'],
+          required: ['password'],
           properties: {
-            nom_utilisateur: { type: 'string', example: 'president.sgm' },
-            mot_passe: { type: 'string', example: 'MotPasse123!' }
-          }
+            email: { type: 'string', format: 'email', example: 'user@example.com' },
+            username: { type: 'string', example: 'john.doe' },
+            password: { type: 'string', example: 'SecurePass123!' }
+          },
+          oneOf: [
+            { required: ['email', 'password'] },
+            { required: ['username', 'password'] }
+          ]
         },
         LoginResponse: {
           type: 'object',
           properties: {
-            message: { type: 'string', example: 'Connexion réussie' },
-            token: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
-            utilisateur: {
+            message: { type: 'string', example: 'Sign in successful' },
+            user: {
               type: 'object',
               properties: {
-                nom_utilisateur: { type: 'string', example: 'president.sgm' },
-                role: { type: 'string', example: 'PRESIDENT' },
-                doit_changer_mot_passe: { type: 'boolean', example: true }
+                id: { type: 'string', example: 'user_123' },
+                email: { type: 'string', example: 'user@example.com' },
+                name: { type: 'string', example: 'John Doe' },
+                username: { type: 'string', example: 'john.doe' },
+                role: { type: 'string', example: 'MEMBER' },
+                status: { type: 'string', example: 'PENDING' },
+                is_active: { type: 'boolean', example: true }
+              }
+            },
+            session: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', example: 'session_123' },
+                expiresAt: { type: 'string', format: 'date-time', example: '2024-01-22T10:30:00Z' }
+              }
+            }
+          }
+        },
+        SignUpRequest: {
+          type: 'object',
+          required: ['email', 'password', 'invitationToken'],
+          properties: {
+            email: { type: 'string', format: 'email', example: 'user@example.com' },
+            password: { type: 'string', minLength: 8, example: 'SecurePass123!' },
+            username: { type: 'string', example: 'john.doe' },
+            name: { type: 'string', example: 'John Doe' },
+            invitationToken: { type: 'string', example: 'invitation-token-here' }
+          }
+        },
+        SignUpResponse: {
+          type: 'object',
+          properties: {
+            message: { type: 'string', example: 'Account created successfully' },
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', example: 'user_123' },
+                email: { type: 'string', example: 'user@example.com' },
+                name: { type: 'string', example: 'John Doe' },
+                username: { type: 'string', example: 'john.doe' },
+                role: { type: 'string', example: 'MEMBER' },
+                status: { type: 'string', example: 'PENDING' }
+              }
+            }
+          }
+        },
+        SessionResponse: {
+          type: 'object',
+          properties: {
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', example: 'user_123' },
+                email: { type: 'string', example: 'user@example.com' },
+                name: { type: 'string', example: 'John Doe' },
+                username: { type: 'string', example: 'john.doe' },
+                role: { type: 'string', example: 'MEMBER' },
+                status: { type: 'string', example: 'PENDING' },
+                is_active: { type: 'boolean', example: true }
+              }
+            },
+            session: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', example: 'session_123' },
+                expiresAt: { type: 'string', format: 'date-time', example: '2024-01-22T10:30:00Z' }
+              }
+            }
+          }
+        },
+        InvitationRequest: {
+          type: 'object',
+          required: ['email'],
+          properties: {
+            email: { type: 'string', format: 'email', example: 'newuser@example.com' },
+            role: { type: 'string', enum: ['MEMBER', 'ADMIN'], default: 'MEMBER', example: 'MEMBER' }
+          }
+        },
+        InvitationResponse: {
+          type: 'object',
+          properties: {
+            message: { type: 'string', example: 'Invitation created successfully' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', example: 'invitation_123' },
+                email: { type: 'string', example: 'newuser@example.com' },
+                role: { type: 'string', example: 'MEMBER' },
+                expiresAt: { type: 'string', format: 'date-time', example: '2024-01-22T10:30:00Z' },
+                email_sent: { type: 'boolean', example: true }
               }
             }
           }
@@ -309,7 +403,19 @@ const options = {
       },
       {
         name: 'Authentication',
-        description: 'Authentification et gestion des sessions'
+        description: 'Better-auth authentication system with sessions and RBAC'
+      },
+      {
+        name: 'Invitations',
+        description: 'Invitation management for controlled user registration'
+      },
+      {
+        name: 'User',
+        description: 'User profile and status management'
+      },
+      {
+        name: 'Admin',
+        description: 'Admin dashboard and member management'
       },
       {
         name: 'Secretary',

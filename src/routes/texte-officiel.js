@@ -1,6 +1,6 @@
 const express = require('express');
 const texteOfficielController = require('../controllers/texte-officiel.controller');
-const { authentifierJWT } = require('../middleware/auth-local');
+const { requireAuth, requireAdmin } = require('../middleware/betterAuth');
 const { generalLimiter } = require('../middleware/security');
 
 const router = express.Router();
@@ -40,7 +40,7 @@ const router = express.Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', authentifierJWT, generalLimiter, texteOfficielController.creerTexteOfficiel);
+router.post('/', requireAuth, generalLimiter, texteOfficielController.creerTexteOfficiel);
 
 /**
  * @swagger
@@ -94,7 +94,7 @@ router.post('/', authentifierJWT, generalLimiter, texteOfficielController.creerT
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', authentifierJWT, generalLimiter, texteOfficielController.listerTextesOfficiels);
+router.get('/', requireAuth, generalLimiter, texteOfficielController.listerTextesOfficiels);
 
 /**
  * @swagger
@@ -119,7 +119,7 @@ router.get('/', authentifierJWT, generalLimiter, texteOfficielController.listerT
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/statistiques', authentifierJWT, generalLimiter, texteOfficielController.obtenirStatistiques);
+router.get('/statistiques', requireAuth, generalLimiter, texteOfficielController.obtenirStatistiques);
 
 /**
  * @swagger
@@ -151,7 +151,7 @@ router.get('/statistiques', authentifierJWT, generalLimiter, texteOfficielContro
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/:id', authentifierJWT, generalLimiter, texteOfficielController.obtenirTexteOfficiel);
+router.get('/:id', requireAuth, generalLimiter, texteOfficielController.obtenirTexteOfficiel);
 
 /**
  * @swagger
@@ -201,7 +201,7 @@ router.get('/:id', authentifierJWT, generalLimiter, texteOfficielController.obte
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.put('/:id', authentifierJWT, generalLimiter, texteOfficielController.mettreAJourTexteOfficiel);
+router.put('/:id', requireAuth, generalLimiter, texteOfficielController.mettreAJourTexteOfficiel);
 
 /**
  * @swagger
@@ -243,6 +243,6 @@ router.put('/:id', authentifierJWT, generalLimiter, texteOfficielController.mett
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.delete('/:id', authentifierJWT, generalLimiter, texteOfficielController.supprimerTexteOfficiel);
+router.delete('/:id', requireAuth, generalLimiter, texteOfficielController.supprimerTexteOfficiel);
 
 module.exports = router;

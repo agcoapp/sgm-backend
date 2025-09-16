@@ -8,7 +8,7 @@ const { helmet, generalLimiter } = require('./middleware/security');
 
 // Routes
 const healthRoutes = require('./routes/health');
-const authRoutes = require('./routes/auth'); // Routes auth locale (remplace Clerk)
+const betterAuthRoutes = require('./routes/better-auth'); // Better-auth authentication routes
 const secretaireRoutes = require('./routes/secretaire'); // Routes tableau de bord secrétaire
 const membreRoutes = require('./routes/membre'); // Routes membre
 const adhesionRoutes = require('./routes/adhesion');
@@ -69,10 +69,9 @@ if (!fs.existsSync(logsDir)) {
 
 // Routes
 app.use('/api/health', healthRoutes);
-// app.use('/api/auth', authRoutes); // COMMENTED - Auth now handled by better-auth
+app.use('/api/auth', betterAuthRoutes); // Better-auth authentication routes
 app.use('/api/secretaire', secretaireRoutes); // Routes tableau de bord secrétaire
 app.use('/api/membre', membreRoutes); // Routes membre
-// app.use('/api/register', registrationRoutes); // REMOVED - Registration handled by better-auth
 app.use('/api/adhesion', adhesionRoutes);
 app.use('/api/textes-officiels', texteOfficielRoutes); // Routes textes officiels
 app.use('/api/signature', signatureRoutes); // Routes signatures Cloudinary
@@ -116,15 +115,20 @@ app.get('/api', (req, res) => {
     },
     endpoints: {
       health: '/api/health',
-      auth_connexion: '/api/auth/connexion (POST) - Connexion locale',
-      auth_profil: '/api/auth/profil (GET) - Profil utilisateur connecté',
-      auth_changer_mot_passe: '/api/auth/changer-mot-passe (POST) - Changer mot de passe',
-      auth_recuperation: '/api/auth/demander-recuperation (POST) - Récupération par email',
-      secretaire_tableau_bord: '/api/secretaire/tableau-bord (GET) - Tableau de bord secrétaire',
-      secretaire_creer_identifiants: '/api/secretaire/creer-identifiants (POST) - Créer identifiants',
+      auth_signup: '/api/auth/signup (POST) - User registration with invitation',
+      auth_signin: '/api/auth/signin (POST) - User authentication',
+      auth_signout: '/api/auth/signout (POST) - User logout',
+      auth_session: '/api/auth/session (GET) - Get current session',
+      auth_change_password: '/api/auth/change-password (POST) - Change password',
+      auth_forgot_password: '/api/auth/forgot-password (POST) - Request password reset',
+      auth_reset_password: '/api/auth/reset-password (POST) - Reset password with token',
+      user_profile: '/api/user/profile (GET/PUT) - User profile management',
+      user_status: '/api/user/status (GET) - User status and next actions',
+      admin_dashboard: '/api/admin/dashboard (GET) - Admin dashboard',
+      admin_membership_forms: '/api/admin/membership-forms (GET) - Get membership forms',
+      invitations: '/api/invitations (POST/GET/DELETE) - Invitation management',
       adhesion_soumettre: '/api/adhesion/soumettre (POST) - Soumettre demande adhésion',
-      adhesion_statut: '/api/adhesion/statut (GET) - Statut demande adhésion',
-      // register: '/api/register (POST) - Registration handled by better-auth'
+      adhesion_statut: '/api/adhesion/statut (GET) - Statut demande adhésion'
     },
     documentation: 'See README.md for full API documentation'
   });
@@ -153,9 +157,14 @@ app.use('*', (req, res) => {
     available_endpoints: {
       health: 'GET /api/health',
       info: 'GET /api',
-      auth: 'POST /api/auth/connexion',
-      secretary: 'GET /api/secretaire/tableau-bord',
-      member: 'GET /api/membre/formulaire-adhesion',
+      auth_signup: 'POST /api/auth/signup',
+      auth_signin: 'POST /api/auth/signin',
+      auth_signout: 'POST /api/auth/signout',
+      auth_session: 'GET /api/auth/session',
+      user_profile: 'GET/PUT /api/user/profile',
+      user_status: 'GET /api/user/status',
+      admin_dashboard: 'GET /api/admin/dashboard',
+      invitations: 'POST/GET/DELETE /api/invitations',
       adhesion: 'POST /api/adhesion/soumettre'
     }
   });

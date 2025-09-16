@@ -1,12 +1,12 @@
 const express = require('express');
 const controleurSecretaire = require('../controllers/secretaire.controller');
-const { authentifierJWT, verifierRole } = require('../middleware/auth-local');
+const { requireAuth, requireAdmin } = require('../middleware/betterAuth');
 const { generalLimiter } = require('../middleware/security');
 
 const router = express.Router();
 
-// Middleware pour vérifier que l'utilisateur est secrétaire ou président
-const verifierRoleSecretaire = verifierRole('SECRETAIRE_GENERALE', 'PRESIDENT');
+// Middleware pour vérifier que l'utilisateur est admin (remplace secrétaire/président)
+const requireSecretaryAccess = requireAdmin;
 
 /**
  * @swagger
@@ -51,8 +51,8 @@ const verifierRoleSecretaire = verifierRole('SECRETAIRE_GENERALE', 'PRESIDENT');
  *               $ref: '#/components/schemas/Error'
  */
 router.get('/tableau-bord', 
-  authentifierJWT, 
-  verifierRoleSecretaire, 
+  requireAuth, 
+  requireSecretaryAccess, 
   generalLimiter,
   (req, res, next) => controleurSecretaire.obtenirTableauBord(req, res, next)
 );
@@ -112,8 +112,8 @@ router.get('/tableau-bord',
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/creer-nouveau-membre', 
-  authentifierJWT, 
-  verifierRoleSecretaire, 
+  requireAuth, 
+  requireSecretaryAccess, 
   generalLimiter,
   controleurSecretaire.creerNouveauMembre
 );
@@ -152,8 +152,8 @@ router.post('/creer-nouveau-membre',
  *                   example: "Identifiants créés avec succès"
  */
 router.post('/creer-identifiants', 
-  authentifierJWT, 
-  verifierRoleSecretaire, 
+  requireAuth, 
+  requireSecretaryAccess, 
   generalLimiter,
   controleurSecretaire.creerIdentifiants
 );
@@ -197,8 +197,8 @@ router.post('/creer-identifiants',
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/marquer-paye', 
-  authentifierJWT, 
-  verifierRoleSecretaire, 
+  requireAuth, 
+  requireSecretaryAccess, 
   generalLimiter,
   controleurSecretaire.marquerCommePaye
 );
@@ -340,8 +340,8 @@ router.post('/marquer-paye',
  *               $ref: '#/components/schemas/Error'
  */
 router.get('/membres', 
-  authentifierJWT, 
-  verifierRoleSecretaire, 
+  requireAuth, 
+  requireSecretaryAccess, 
   generalLimiter,
   controleurSecretaire.listerTousMembres
 );
@@ -479,8 +479,8 @@ router.get('/membres',
  *               $ref: '#/components/schemas/Error'
  */
 router.get('/formulaires', 
-  authentifierJWT, 
-  verifierRoleSecretaire, 
+  requireAuth, 
+  requireSecretaryAccess, 
   generalLimiter,
   controleurSecretaire.listerFormulaires
 );
@@ -626,8 +626,8 @@ router.get('/formulaires',
  *         description: Accès refusé (rôle secrétaire requis)
  */
 router.get('/formulaire/:id_utilisateur',
-  authentifierJWT,
-  verifierRoleSecretaire,
+  requireAuth,
+  requireSecretaryAccess,
   generalLimiter,
   controleurSecretaire.obtenirFormulaireUtilisateur
 );
@@ -758,8 +758,8 @@ router.get('/formulaire/:id_utilisateur',
  *                   example: "Erreur lors de l'approbation du formulaire"
  */
 router.post('/approuver-formulaire', 
-  authentifierJWT, 
-  verifierRoleSecretaire, 
+  requireAuth, 
+  requireSecretaryAccess, 
   generalLimiter,
   controleurSecretaire.approuverFormulaire
 );
@@ -813,8 +813,8 @@ router.post('/approuver-formulaire',
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/rejeter-formulaire', 
-  authentifierJWT, 
-  verifierRoleSecretaire, 
+  requireAuth, 
+  requireSecretaryAccess, 
   generalLimiter,
   controleurSecretaire.rejeterFormulaire
 );
@@ -866,8 +866,8 @@ router.post('/rejeter-formulaire',
  *               $ref: '#/components/schemas/Error'
  */
 router.delete('/supprimer-formulaire', 
-  authentifierJWT, 
-  verifierRoleSecretaire, 
+  requireAuth, 
+  requireSecretaryAccess, 
   generalLimiter,
   controleurSecretaire.supprimerFormulaire
 );
@@ -941,8 +941,8 @@ router.delete('/supprimer-formulaire',
  *               $ref: '#/components/schemas/Error'
  */
 router.put('/modifier-formulaire', 
-  authentifierJWT, 
-  verifierRoleSecretaire, 
+  requireAuth, 
+  requireSecretaryAccess, 
   generalLimiter,
   controleurSecretaire.modifierFormulaire
 );
@@ -998,8 +998,8 @@ router.put('/modifier-formulaire',
  *                   $ref: '#/components/schemas/Pagination'
  */
 router.get('/formulaires-approuves', 
-  authentifierJWT, 
-  verifierRoleSecretaire, 
+  requireAuth, 
+  requireSecretaryAccess, 
   generalLimiter,
   controleurSecretaire.obtenirFormulairesApprouves
 );
@@ -1091,8 +1091,8 @@ router.get('/formulaires-approuves',
  *                   $ref: '#/components/schemas/Pagination'
  */
 router.get('/membres-approuves', 
-  authentifierJWT, 
-  verifierRoleSecretaire, 
+  requireAuth, 
+  requireSecretaryAccess, 
   generalLimiter,
   controleurSecretaire.listerMembresApprouves
 );
@@ -1150,8 +1150,8 @@ router.get('/membres-approuves',
  *                   $ref: '#/components/schemas/Pagination'
  */
 router.get('/cartes-membres', 
-  authentifierJWT, 
-  verifierRoleSecretaire, 
+  requireAuth, 
+  requireSecretaryAccess, 
   generalLimiter,
   controleurSecretaire.listerCartesMembres
 );
@@ -1215,8 +1215,8 @@ router.get('/cartes-membres',
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/desactiver-utilisateur', 
-  authentifierJWT, 
-  verifierRoleSecretaire, 
+  requireAuth, 
+  requireSecretaryAccess, 
   generalLimiter,
   controleurSecretaire.desactiverUtilisateur
 );
@@ -1327,7 +1327,7 @@ router.post('/desactiver-utilisateur',
  *               $ref: '#/components/schemas/Error'
  */
 router.get('/nouveaux-utilisateurs-credentials', 
-  authentifierJWT, 
+  requireAuth, 
   generalLimiter,
   controleurSecretaire.listerNouveauxUtilisateursAvecCredits
 );
@@ -1441,7 +1441,7 @@ router.get('/nouveaux-utilisateurs-credentials',
  *                   example: "AUCUN_MOT_PASSE_TEMPORAIRE"
  */
 router.delete('/supprimer-mot-passe-temporaire', 
-  authentifierJWT, 
+  requireAuth, 
   generalLimiter,
   controleurSecretaire.supprimerMotPasseTemporaire
 );
@@ -1491,8 +1491,8 @@ router.delete('/supprimer-mot-passe-temporaire',
  *                       type: string
  */
 router.post('/mettre-a-jour-signature', 
-  authentifierJWT, 
-  verifierRoleSecretaire, 
+  requireAuth, 
+  requireSecretaryAccess, 
   generalLimiter,
   controleurSecretaire.mettreAJourSignature
 );

@@ -1,6 +1,6 @@
 const express = require('express');
 const signatureController = require('../controllers/signature.controller');
-const { authentifierJWT } = require('../middleware/auth-local');
+const { requireAuth, requireAdmin } = require('../middleware/betterAuth');
 
 const router = express.Router();
 
@@ -102,6 +102,6 @@ const router = express.Router();
  *                     code:
  *                       type: string
  */
-router.get('/', authentifierJWT, signatureController.generateUploadSignature);
+router.get('/', requireAuth, signatureController.generateUploadSignature);
 
 module.exports = router;

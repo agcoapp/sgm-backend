@@ -10,7 +10,7 @@ const requireAuth = async (req, res, next) => {
     if (!session) {
       return res.status(401).json({
         type: 'authentication_error',
-        message: 'Authentication requise',
+        message: 'Authentication required',
         code: 'UNAUTHORIZED'
       });
     }
@@ -21,8 +21,8 @@ const requireAuth = async (req, res, next) => {
   } catch (error) {
     return res.status(401).json({
       type: 'authentication_error', 
-      message: 'Token invalide',
-      code: 'INVALID_TOKEN'
+      message: 'Invalid session',
+      code: 'INVALID_SESSION'
     });
   }
 };
@@ -32,7 +32,7 @@ const requireAdmin = (req, res, next) => {
   if (!req.user || req.user.role !== 'ADMIN') {
     return res.status(403).json({
       type: 'authorization_error',
-      message: 'Accès administrateur requis',
+      message: 'Admin access required',
       code: 'ADMIN_REQUIRED'
     });
   }
@@ -44,8 +44,32 @@ const requireMember = (req, res, next) => {
   if (!req.user || !['MEMBER', 'ADMIN'].includes(req.user.role)) {
     return res.status(403).json({
       type: 'authorization_error',
-      message: 'Accès membre requis',
+      message: 'Member access required',
       code: 'MEMBER_REQUIRED'
+    });
+  }
+  next();
+};
+
+// Middleware to require active account
+const requireActiveAccount = (req, res, next) => {
+  if (!req.user || !req.user.is_active) {
+    return res.status(403).json({
+      type: 'authorization_error',
+      message: 'Account is deactivated',
+      code: 'ACCOUNT_DEACTIVATED'
+    });
+  }
+  next();
+};
+
+// Middleware to require approved status
+const requireApprovedStatus = (req, res, next) => {
+  if (!req.user || req.user.status !== 'APPROVED') {
+    return res.status(403).json({
+      type: 'authorization_error',
+      message: 'Account must be approved',
+      code: 'ACCOUNT_NOT_APPROVED'
     });
   }
   next();
@@ -54,5 +78,7 @@ const requireMember = (req, res, next) => {
 module.exports = {
   requireAuth,
   requireAdmin,
-  requireMember
+  requireMember,
+  requireActiveAccount,
+  requireApprovedStatus
 };

@@ -1,6 +1,6 @@
 const express = require('express');
 const membreController = require('../controllers/membre.controller');
-const { authentifierJWT, verifierRole } = require('../middleware/auth-local');
+const { requireAuth, requireAdmin } = require('../middleware/betterAuth');
 const { generalLimiter } = require('../middleware/security');
 
 const router = express.Router();
@@ -63,7 +63,7 @@ const router = express.Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/formulaire-adhesion', authentifierJWT, generalLimiter, membreController.voirFormulaireAdhesion);
+router.get('/formulaire-adhesion', requireAuth, generalLimiter, membreController.voirFormulaireAdhesion);
 
 /**
  * @swagger
@@ -114,7 +114,7 @@ router.get('/formulaire-adhesion', authentifierJWT, generalLimiter, membreContro
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/carte-membre', authentifierJWT, generalLimiter, membreController.voirCarteMembre);
+router.get('/carte-membre', requireAuth, generalLimiter, membreController.voirCarteMembre);
 
 /**
  * @swagger
@@ -140,7 +140,7 @@ router.get('/carte-membre', authentifierJWT, generalLimiter, membreController.vo
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/telecharger-formulaire', authentifierJWT, generalLimiter, membreController.telechargerFormulaire);
+router.get('/telecharger-formulaire', requireAuth, generalLimiter, membreController.telechargerFormulaire);
 
 /**
  * @swagger
@@ -268,7 +268,7 @@ router.get('/telecharger-formulaire', authentifierJWT, generalLimiter, membreCon
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/annuaire', authentifierJWT, generalLimiter, membreController.obtenirAnnuaireMembres);
+router.get('/annuaire', requireAuth, generalLimiter, membreController.obtenirAnnuaireMembres);
 
 /**
  * @swagger
@@ -294,7 +294,7 @@ router.get('/annuaire', authentifierJWT, generalLimiter, membreController.obteni
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/telecharger-carte', authentifierJWT, generalLimiter, membreController.telechargerCarte);
+router.get('/telecharger-carte', requireAuth, generalLimiter, membreController.telechargerCarte);
 
 /**
  * @swagger
@@ -338,6 +338,6 @@ router.get('/telecharger-carte', authentifierJWT, generalLimiter, membreControll
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/president-signature', authentifierJWT, verifierRole('SECRETAIRE_GENERALE', 'PRESIDENT'), generalLimiter, membreController.getPresidentSignature);
+router.get('/president-signature', requireAuth, requireAdmin, generalLimiter, membreController.getPresidentSignature);
 
 module.exports = router;
