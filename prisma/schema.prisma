@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -18,40 +17,47 @@ model User {
   createdAt     DateTime  @default(now()) // Better-auth field
   updatedAt     DateTime  @updatedAt // Better-auth field
   
-  // SGM-specific fields (all in English)
-  membership_number      String?   @unique // Auto-generated membership number
-  birth_date             DateTime? // Date of birth
-  birth_place            String?   // Place of birth
-  address                String?   // Address
+  // SGM-specific fields (mapped to actual database columns)
+  membership_number      String?   @unique @map("numero_adhesion") // Auto-generated membership number
+  first_name             String?   @map("prenoms") // First name
+  last_name              String?   @map("nom") // Last name
+  profile_photo_url      String?   @map("photo_profil_url") // Profile photo URL
+  birth_date             DateTime? @map("date_naissance") // Date of birth
+  birth_place            String?   @map("lieu_naissance") // Place of birth
+  address                String?   @map("adresse") // Address
   profession             String?   // Profession
-  city_residence         String?   // City of residence
-  congo_entry_date       DateTime? // Date of entry to Congo
-  employer_school        String?   // Employer/University/School
-  phone                  String?   // Phone number
-  consular_card_number   String?   @unique // Consular card number
-  id_issue_date          DateTime? // ID issue date
+  city_residence         String?   @map("ville_residence") // City of residence
+  congo_entry_date       DateTime? @map("date_entree_congo") // Date of entry to Congo
+  employer_school        String?   @map("employeur_ecole") // Employer/University/School
+  phone                  String?   @map("telephone") // Phone number
+  consular_card_number   String?   @unique @map("numero_carte_consulaire") // Consular card number
+  id_issue_date          DateTime? @map("date_emission_piece") // ID issue date
   selfie_photo_url       String?   // Selfie photo URL
-  member_signature_url   String?   // Member signature URL
-  comments               String?   // Optional comments
-  spouse_first_name      String?   // Spouse first name
-  spouse_last_name       String?   // Spouse last name
-  children_count         Int?      // Number of children
-  status                 Status    @default(PENDING)
-  role                   Role      @default(MEMBER)
-  form_code              String?   @unique // Form reference code
-  qr_code_url            String?   // QR code URL
-  card_issued_at         DateTime? // Card issue date
-  rejection_reason       String?   // Rejection reason if status = REJECTED
-  rejected_at            DateTime? // Rejection date
-  rejected_by            String?   // ID of admin who rejected
-  username               String?   @unique // Username for better-auth
-  has_paid               Boolean   @default(false) // True if paid physically
-  has_submitted_form     Boolean   @default(false) // True if submitted form
-  last_login             DateTime? // Last login
-  is_active              Boolean   @default(true) // True if account active
-  deactivated_at         DateTime? // Deactivation date
-  deactivated_by         String?   // ID of admin who deactivated
-  deactivation_reason    String?   // Deactivation reason
+  signature_url          String?   @map("signature_url") // Signature URL
+  member_signature_url   String?   @map("signature_membre_url") // Member signature URL
+  comments               String?   @map("commentaire") // Optional comments
+  spouse_first_name      String?   @map("prenom_conjoint") // Spouse first name
+  spouse_last_name       String?   @map("nom_conjoint") // Spouse last name
+  children_count         Int?      @map("nombre_enfants") // Number of children
+  status                 Status    @default(PENDING) @map("statut") // Status enum
+  role                   Role      @default(MEMBER) // Role enum
+  form_code              String?   @unique @map("code_formulaire") // Form reference code
+  qr_code_url            String?   @map("url_qr_code") // QR code URL
+  card_issued_at         DateTime? @map("carte_emise_le") // Card issue date
+  rejection_reason       String?   @map("raison_rejet") // Rejection reason if status = REJECTED
+  rejected_at            DateTime? @map("rejete_le") // Rejection date
+  rejected_by            String?   @map("rejete_par") // ID of admin who rejected
+  username               String?   @unique @map("nom_utilisateur") // Username for better-auth
+  temporary_password     String?   @map("mot_passe_temporaire") // Temporary password
+  must_change_password   Boolean   @default(false) @map("doit_changer_mot_passe") // Must change password
+  changed_temp_password  Boolean   @default(false) @map("a_change_mot_passe_temporaire") // Changed temp password
+  has_paid               Boolean   @default(false) @map("a_paye") // Has paid
+  has_submitted_form     Boolean   @default(false) @map("a_soumis_formulaire") // True if submitted form
+  last_login             DateTime? @map("derniere_connexion") // Last login
+  is_active              Boolean   @default(true) @map("est_actif") // True if account active
+  deactivated_at         DateTime? @map("desactive_le") // Deactivation date
+  deactivated_by         String?   @map("desactive_par") // ID of admin who deactivated
+  deactivation_reason    String?   @map("raison_desactivation") // Deactivation reason
 
   // Better-Auth relations
   accounts Account[]

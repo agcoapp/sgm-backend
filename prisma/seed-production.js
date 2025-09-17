@@ -1,97 +1,70 @@
 const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding production database...');
+  console.log('🌱 Seeding production database with Better-Auth system...');
 
-  // Generate secure password hash for production users
-  const motPasseHash = await bcrypt.hash(process.env.DEFAULT_ADMIN_PASSWORD || 'MotPasse123!', 12);
-
-  // Create a production president user
-  const president = await prisma.utilisateur.upsert({
-    where: { email: 'president@sgm-gabon.org' },
+  // Create a production admin user (replaces president)
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@sgm-gabon.org' },
     update: {},
     create: {
-      prenoms: 'Lamine',
-      nom: 'DIOUGA-DIOP',
-      numero_carte_consulaire: 'PRES001',
-      email: 'president@sgm-gabon.org',
-      telephone: '+242057424200',
-      adresse: 'Siège SGM, Libreville, Gabon',
-      date_naissance: new Date(1965, 3, 14), // 14-04-1965 en format français
-      lieu_naissance: 'Libreville',
+      name: 'Lamine DIOUGA-DIOP',
+      email: 'admin@sgm-gabon.org',
+      username: 'admin.sgm',
+      phone: '+242057424200',
+      address: 'Siège SGM, Libreville, Gabon',
       profession: 'Président Association',
-      ville_residence: 'Brazzaville',
-      date_entree_congo: new Date(2000, 0, 1), // 01-01-2000 en format français
-      employeur_ecole: 'Les Ateliers Reunis',
-      date_emission_piece: new Date(2020, 0, 1), // 01-01-2020 en format français
-      statut: 'APPROUVE',
-      role: 'PRESIDENT',
-      code_formulaire: 'N°001/AGCO/P/01-2025',
-      photo_profil_url: 'https://via.placeholder.com/300x400',
-      carte_emise_le: new Date(),
-      nom_utilisateur: 'president.sgm',
-      mot_passe_hash: motPasseHash,
-      doit_changer_mot_passe: true, // Force password change on first login
-      a_change_mot_passe_temporaire: false, // Will be set to true after first password change
-      a_paye: true,
-      a_soumis_formulaire: true
+      city_residence: 'Brazzaville',
+      employer_school: 'Les Ateliers Reunis',
+      spouse_first_name: '',
+      spouse_last_name: '',
+      children_count: 0,
+      comments: 'Administrateur système SGM',
+      role: 'ADMIN',
+      status: 'APPROUVE',
+      membership_number: 'SGM-ADMIN-001',
+      form_code: 'N°001/AGCO/ADMIN/2025',
+      has_submitted_form: true,
+      is_active: true,
+      card_issued_at: new Date(),
     },
   });
 
   // Create a production secretary user
-  const secretary = await prisma.utilisateur.upsert({
+  const secretary = await prisma.user.upsert({
     where: { email: 'secretaire@sgm-gabon.org' },
     update: {},
     create: {
-      prenoms: 'Mesmin',
-      nom: 'LENGANDY',
-      numero_carte_consulaire: 'SEC001',
+      name: 'Mesmin LENGANDY',
       email: 'secretaire@sgm-gabon.org',
-      telephone: '+242066000002',
-      adresse: 'Siège SGM, Brazzaville, Congo',
-      date_naissance: new Date(1985, 4, 15), // 15-05-1985 en format français
-      lieu_naissance: 'Brazzaville',
+      username: 'secretaire.sgm',
+      phone: '+242066000002',
+      address: 'Siège SGM, Brazzaville, Congo',
       profession: 'Secrétaire Générale',
-      ville_residence: 'Brazzaville',
-      date_entree_congo: new Date(2010, 0, 1), // 01-01-2010 en format français
-      employeur_ecole: 'SGM Association',
-      date_emission_piece: new Date(2020, 0, 1), // 01-01-2020 en format français
-      statut: 'APPROUVE',
-      role: 'SECRETAIRE_GENERALE',
-      code_formulaire: 'N°002/AGCO/SG/01-2025',
-      photo_profil_url: 'https://via.placeholder.com/300x400',
-      carte_emise_le: new Date(),
-      nom_utilisateur: 'secretaire.sgm',
-      mot_passe_hash: motPasseHash,
-      doit_changer_mot_passe: true, // Force password change on first login
-      a_change_mot_passe_temporaire: false, // Will be set to true after first password change
-      a_paye: true,
-      a_soumis_formulaire: true
-    },
-  });
-
-  // Create initial audit log
-  await prisma.journalAudit.create({
-    data: {
-      action: 'DATABASE_SEED_PRODUCTION',
-      details: {
-        message: 'Base de données de production initialisée',
-        utilisateurs_crees: 2,
-        environment: 'production'
-      },
-      adresse_ip: '0.0.0.0',
-      agent_utilisateur: 'railway-seed',
+      city_residence: 'Brazzaville',
+      employer_school: 'SGM Association',
+      spouse_first_name: '',
+      spouse_last_name: '',
+      children_count: 0,
+      comments: 'Secrétaire Générale SGM',
+      role: 'ADMIN', // Secretary has admin privileges in better-auth system
+      status: 'APPROUVE',
+      membership_number: 'SGM-SEC-001',
+      form_code: 'N°002/AGCO/SEC/2025',
+      has_submitted_form: true,
+      is_active: true,
+      card_issued_at: new Date(),
     },
   });
 
   console.log('✅ Production database seeded successfully');
-  console.log('🔐 IMPORTANT: Default admin credentials created');
-  console.log('   President: president.sgm / MotPasse123! (CHANGE IMMEDIATELY)');
-  console.log('   Secretary: secretaire.sgm / MotPasse123! (CHANGE IMMEDIATELY)');
-  console.log('⚠️  Both users are forced to change password on first login');
+  console.log('🔐 IMPORTANT: Admin users created for Better-Auth system');
+  console.log('   Admin: admin@sgm-gabon.org');
+  console.log('   Secretary: secretaire@sgm-gabon.org');
+  console.log('⚠️  Both users need to sign up via Better-Auth signup endpoint');
+  console.log('   Use invitation system to create accounts with proper passwords');
 }
 
 main()
