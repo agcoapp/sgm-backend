@@ -1,0 +1,786 @@
+{
+  "info": {
+    "name": "SGM Backend - Complete API Collection",
+    "description": "Complete API Collection for SGM Backend - Association des Gabonais du Congo\n\n## 🔄 Workflow:\n1. **Secretary creates member credentials** after cash payment\n2. **Member logs in** with generated username/password\n3. **Member changes password** on first login (mandatory)\n4. **Member submits adhesion form** with personal details + photos\n5. **Secretary reviews and approves/rejects** forms\n6. **Approved forms get President signature** automatically\n7. **Secretary/President can fetch signature** for frontend display\n\n## 🔐 Test Credentials:\n- **President:** `jean.president` / `MotPasse123!`\n- **Secretary:** `marie.secretaire` / `MotPasse123!`\n\n## 🗓️ Date Format:\nAll dates use French format: `DD-MM-YYYY`\n\n## 📍 Base URLs:\n- **Local:** `http://localhost:3000`\n- **Production:** `https://sgm-backend-production.up.railway.app`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "2.1.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🏥 Health Check",
+      "item": [
+        {
+          "name": "Basic Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            }
+          }
+        },
+        {
+          "name": "Detailed Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/detailed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", "detailed"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Login President",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', response.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nom_utilisateur\": \"president.sgm\",\n  \"mot_passe\": \"MotPasse123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/connexion",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "connexion"]
+            }
+          }
+        },
+        {
+          "name": "Login Secretary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', response.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nom_utilisateur\": \"secrétaire.sgm\",\n  \"mot_passe\": \"MotPasse123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/connexion",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "connexion"]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ancien_mot_passe\": \"MotPasse123!\",\n  \"nouveau_mot_passe\": \"NouveauMotPasse123!\",\n  \"confirmer_mot_passe\": \"NouveauMotPasse123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/changer-mot-passe",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "changer-mot-passe"]
+            }
+          }
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/profil",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "profil"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👩‍💼 Secretary Dashboard",
+      "item": [
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/tableau-bord?page=1&limite=10&recherche=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "tableau-bord"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limite",
+                  "value": "10"
+                },
+                {
+                  "key": "recherche",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👥 Member Management",
+      "item": [
+        {
+          "name": "Create New Member + Credentials",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prenoms\": \"Jean Claude\",\n  \"nom\": \"Mbongo\",\n  \"a_paye\": true,\n  \"telephone\": \"+241066123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/creer-nouveau-membre",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "creer-nouveau-membre"]
+            }
+          }
+        },
+        {
+          "name": "List All Members",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/membres?page=1&limite=20&filtre=tous&recherche=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "membres"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limite",
+                  "value": "20"
+                },
+                {
+                  "key": "filtre",
+                  "value": "tous",
+                  "description": "tous, paye, non_paye, formulaire_soumis, approuve, en_attente"
+                },
+                {
+                  "key": "recherche",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 Form Management",
+      "item": [
+        {
+          "name": "List All Forms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/formulaires?page=1&limite=20&statut=tous&recherche=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "formulaires"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limite",
+                  "value": "20"
+                },
+                {
+                  "key": "statut",
+                  "value": "tous",
+                  "description": "tous, en_attente, approuve, rejete"
+                },
+                {
+                  "key": "recherche",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Approve Form (+ President Signature)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_utilisateur\": 3,\n  \"commentaire\": \"Dossier complet et validé\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/approuver-formulaire",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "approuver-formulaire"]
+            }
+          }
+        },
+        {
+          "name": "Reject Form",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_utilisateur\": 3,\n  \"raison\": \"Documents illisibles ou incomplets\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/rejeter-formulaire",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "rejeter-formulaire"]
+            }
+          }
+        },
+        {
+          "name": "Delete Form (Allow Resubmission)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_utilisateur\": 3,\n  \"raison\": \"Erreur de saisie - resoumission requise\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/supprimer-formulaire",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "supprimer-formulaire"]
+            }
+          }
+        },
+        {
+          "name": "Modify Form",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_utilisateur\": 3,\n  \"modifications\": {\n    \"prenoms\": \"Jean Claude Modified\",\n    \"telephone\": \"+241066123456\",\n    \"email\": \"modified@example.com\",\n    \"adresse\": \"123 Modified Avenue\",\n    \"signature_membre_url\": \"https://res.cloudinary.com/signature.png\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/modifier-formulaire",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "modifier-formulaire"]
+            }
+          }
+        },
+        {
+          "name": "List Approved Forms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/formulaires-approuves?page=1&limite=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "formulaires-approuves"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limite",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Approved Members",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/membres-approuves?page=1&limite=50&recherche=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "membres-approuves"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limite",
+                  "value": "50"
+                },
+                {
+                  "key": "recherche",
+                  "value": "",
+                  "description": "Search by name, phone, adhesion number or form code"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Member Cards",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/cartes-membres?page=1&limite=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "cartes-membres"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limite",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Deactivate User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_utilisateur\": 5,\n  \"raison\": \"Non-respect du règlement intérieur de l'association\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/desactiver-utilisateur",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "desactiver-utilisateur"]
+            }
+          }
+        },
+        {
+          "name": "Update President Signature",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url_signature\": \"https://res.cloudinary.com/sgm/image/upload/v1234567890/sgm/signatures/president_signature_new.png\",\n  \"cloudinary_id\": \"sgm/signatures/president_signature_new\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/secretaire/mettre-a-jour-signature",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "secretaire", "mettre-a-jour-signature"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Member Endpoints",
+      "item": [
+        {
+          "name": "Change Temporary Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nouveau_mot_passe\": \"MonNouveauMotPasse123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/changer-mot-passe-temporaire",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "changer-mot-passe-temporaire"]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ancien_mot_passe\": \"AncienMotPasse123!\",\n  \"nouveau_mot_passe\": \"NouveauMotPasse123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/changer-mot-passe",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "changer-mot-passe"]
+            }
+          }
+        },
+        {
+          "name": "Request Password Reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"jean.mbongo@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/demander-reinitialisation",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "demander-reinitialisation"]
+            }
+          }
+        },
+        {
+          "name": "Reset Password with Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"reset-token-from-email\",\n  \"nouveau_mot_passe\": \"NouveauMotPasse123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/reinitialiser-mot-passe",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "reinitialiser-mot-passe"]
+            }
+          }
+        },
+        {
+          "name": "View Adhesion Form",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/formulaire-adhesion",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "formulaire-adhesion"]
+            }
+          }
+        },
+        {
+          "name": "View Member Card",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/carte-membre",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "carte-membre"]
+            }
+          }
+        },
+        {
+          "name": "Download Adhesion Form PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/telecharger-formulaire",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "telecharger-formulaire"]
+            }
+          }
+        },
+        {
+          "name": "Download Member Card PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/telecharger-carte",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "telecharger-carte"]
+            }
+          }
+        },
+        {
+          "name": "Get President Signature",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/membre/president-signature",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "membre", "president-signature"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains signature data\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('signature_url');",
+                  "    pm.expect(jsonData).to.have.property('nom_president');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "📝 Member Adhesion",
+      "item": [
+        {
+          "name": "Submit Adhesion Form",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prenoms\": \"Jean Claude\",\n  \"nom\": \"Mbongo\",\n  \"email\": \"jean.mbongo@example.com\",\n  \"telephone\": \"+241066123456\",\n  \"adresse\": \"Libreville, Gabon\",\n  \"date_naissance\": \"15-03-1990\",\n  \"lieu_naissance\": \"Port-Gentil\",\n  \"profession\": \"Ingénieur\",\n  \"ville_residence\": \"Libreville\",\n  \"date_entree_congo\": \"10-01-2020\",\n  \"employeur_ecole\": \"Total Gabon\",\n  \"type_piece_identite\": \"PASSEPORT\",\n  \"numero_piece_identite\": \"G1234567\",\n  \"date_emission_piece\": \"15-06-2023\",\n  \"id_front_photo\": \"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD...\",\n  \"id_back_photo\": \"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD...\",\n  \"selfie_photo\": \"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD...\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/adhesion/soumettre",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "adhesion", "soumettre"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  }
+}

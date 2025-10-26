@@ -1,0 +1,67 @@
+{
+  "name": "sgm-backend",
+  "version": "1.1.0",
+  "description": "Backend API for SGM Association des Gabonais du Congo - Member management system with email notifications and universal password management",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "NODE_ENV=production npx prisma migrate deploy --schema=./prisma/schema.prisma && node prisma/seed-production.js && node src/server.js",
+    "dev": "nodemon src/server.js",
+    "setup": "chmod +x scripts/*.sh && ./scripts/setup-dev.sh",
+    "build": "npx prisma generate --schema=./prisma/schema.prisma",
+    "railway:start": "./scripts/railway-start.sh",
+    "railway:deploy": "npx prisma migrate deploy --schema=./prisma/schema.prisma && npm run db:seed:prod",
+    "db:seed:prod": "node prisma/seed-production.js",
+    "db:migrate": "npx prisma migrate dev --schema=./prisma/schema.prisma",
+    "db:push": "npx prisma db push --schema=./prisma/schema.prisma",
+    "db:deploy": "npx prisma migrate deploy --schema=./prisma/schema.prisma",
+    "db:studio": "npx prisma studio --schema=./prisma/schema.prisma",
+    "db:reset": "npx prisma migrate reset --force --schema=./prisma/schema.prisma",
+    "db:seed": "node prisma/seed.js",
+    "test": "jest",
+    "lint": "eslint src/",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "keywords": [
+    "sgm",
+    "members",
+    "api",
+    "nodejs"
+  ],
+  "author": "Elvis Destin OLEMBE et Mondésir NTSOUMOU",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^6.13.0",
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^1.41.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.7",
+    "pdfkit": "^0.17.1",
+    "prisma": "^6.13.0",
+    "puppeteer": "^24.16.0",
+    "qrcode": "^1.5.3",
+    "streamifier": "^0.1.1",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "twilio": "^4.19.0",
+    "winston": "^3.11.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}

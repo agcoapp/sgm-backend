@@ -1,0 +1,236 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Utilisateur {
+  id                     Int       @id @default(autoincrement())
+  numero_adhesion        String?   @unique // Numéro d'adhésion autogénéré
+  
+  // Informations personnelles
+  prenoms                String    // Prénoms
+  nom                    String    // Nom de famille  
+  photo_profil_url       String?   // Photo de profil (uploadée ou prise sur place)
+  date_naissance         DateTime? // Date de naissance
+  lieu_naissance         String?   // Lieu de naissance
+  adresse                String?   // Adresse
+  profession             String?   // Profession
+  ville_residence        String?   // Ville de résidence
+  date_entree_congo      DateTime? // Date d'entrée au Congo
+  employeur_ecole        String?   // Employeur/Université/École
+  telephone              String    // Numéro de téléphone (requis)
+  
+  // Informations carte consulaire (optionnelles)
+  numero_carte_consulaire String?   @unique // Numéro de la carte consulaire (optionnel)
+  date_emission_piece     DateTime? // Date d'émission de la carte consulaire (optionnelle)
+  
+  // Photos et signature
+  selfie_photo_url        String?   // Photo selfie uniquement (plus de photo pièce d'identité)
+  signature_url           String?   // Signature du membre (cloudinary link)
+  commentaire             String?   // Commentaire optionnel (max 100 caractères)
+  
+  // Informations familiales
+  prenom_conjoint        String?   // Prénom du conjoint
+  nom_conjoint           String?   // Nom du conjoint
+  nombre_enfants         Int?      // Nombre d'enfants
+  
+  // Champs système
+  email                  String?   @unique // Email optionnel (pour récupération mot de passe)
+  signature_membre_url   String?   // URL de la signature du membre (optionnelle)
+  statut                 Statut    @default(EN_ATTENTE)
+  role                   Role      @default(MEMBRE)
+  code_formulaire        String?   @unique
+  url_qr_code            String?
+  carte_emise_le         DateTime?
+  
+  // Cartes de membre (images stockées sur Cloudinary)
+  carte_recto_url        String?   // URL Cloudinary de la face avant de la carte de membre
+  carte_verso_url        String?   // URL Cloudinary de la face arrière de la carte de membre
+  carte_generee_le       DateTime? // Date de génération des cartes
+  carte_generee_par      Int?      // ID du secrétaire qui a généré les cartes
+  raison_rejet           String?   // Raison du rejet si statut = REJETE
+  rejete_le              DateTime? // Date de rejet
+  rejete_par             Int?      // ID du secrétaire qui a rejeté
+  
+  // Authentification locale
+  nom_utilisateur        String?   @unique // Nom d'utilisateur généré par secrétaire
+  mot_passe_hash         String?   // Hash du mot de passe
+  mot_passe_temporaire   String?   // Mot de passe temporaire (SENSIBLE - accès SG/Président uniquement)
+  doit_changer_mot_passe Boolean   @default(false) // True si première connexion
+  a_change_mot_passe_temporaire Boolean @default(false) // True si a déjà changé le mot de passe temporaire
+  a_paye                 Boolean   @default(false) // True si a payé physiquement
+  a_soumis_formulaire    Boolean   @default(false) // True si a soumis le formulaire
+  derniere_connexion     DateTime? // Dernière connexion
+  est_actif              Boolean   @default(true) // True si compte actif, False si désactivé
+  desactive_le           DateTime? // Date de désactivation
+  desactive_par          Int?      // ID du secrétaire qui a désactivé
+  raison_desactivation   String?   // Raison de la désactivation
+  
+  cree_le                DateTime  @default(now())
+  modifie_le             DateTime  @updatedAt
+
+  // Relations
+  signatures             Signature[]
+  journaux_audit         JournalAudit[]
+  formulaires_adhesion   FormulaireAdhesion[]
+  tokens_recuperation    TokenRecuperation[]
+  textes_officiels       TexteOfficiel[]
+  categories_texte_officiel CategorieTexteOfficiel[]
+  amendments_soumis      AmendmentProfil[] @relation("MembreAmendments")
+  amendments_traites     AmendmentProfil[] @relation("SecretaireAmendments")
+}
+
+model Signature {
+  id                 Int       @id @default(autoincrement())
+  id_president       Int
+  url_signature      String
+  cloudinary_id      String    // Pour supprimer de Cloudinary si besoin
+  est_active         Boolean   @default(true)
+  telecharge_le      DateTime  @default(now())
+
+  utilisateur        Utilisateur @relation(fields: [id_president], references: [id])
+}
+
+model JournalAudit {
+  id              Int       @id @default(autoincrement())
+  id_utilisateur  Int?
+  action          String    // ADHESION, APPROUVER, REJETER, ASSIGNER_CODE, etc.
+  details         Json?     // Détails supplémentaires
+  adresse_ip      String?
+  agent_utilisateur String?
+  cree_le         DateTime  @default(now())
+
+  utilisateur     Utilisateur? @relation(fields: [id_utilisateur], references: [id])
+}
+
+model FormulaireAdhesion {
+  id                   Int       @id @default(autoincrement())
+  id_utilisateur       Int
+  numero_version       Int       // Version 1, 2, 3, etc.
+  url_image_formulaire String    // URL de l'image générée du formulaire
+  donnees_snapshot     Json      // Snapshot des données utilisées pour générer cette version
+  est_version_active   Boolean   @default(true) // Version actuelle (une seule active par utilisateur)
+  cree_le             DateTime   @default(now())
+  
+  utilisateur         Utilisateur @relation(fields: [id_utilisateur], references: [id])
+  
+  @@unique([id_utilisateur, numero_version])
+}
+
+model TokenRecuperation {
+  id             Int       @id @default(autoincrement())
+  id_utilisateur Int
+  token          String    @unique
+  expire_le      DateTime
+  utilise        Boolean   @default(false)
+  cree_le        DateTime  @default(now())
+  
+  utilisateur    Utilisateur @relation(fields: [id_utilisateur], references: [id])
+}
+
+model TexteOfficiel {
+  id                 Int       @id @default(autoincrement())
+  titre              String    // Titre du document
+  description        String?   // Description optionnelle
+  id_categorie       Int       // ID de la catégorie (OBLIGATOIRE)
+  url_cloudinary     String    // URL du fichier PDF sur Cloudinary
+  cloudinary_id      String    // ID Cloudinary pour gestion/suppression
+  taille_fichier     Int?      // Taille du fichier en bytes
+  nom_fichier_original String  // Nom original du fichier
+  
+  // Informations d'upload
+  telecharge_par     Int       // ID du secrétaire qui a uploadé
+  telecharge_le      DateTime  @default(now())
+  modifie_le         DateTime  @updatedAt
+  
+  // Statut et visibilité
+  est_actif          Boolean   @default(true) // True si visible aux membres
+  
+  // Relations
+  utilisateur        Utilisateur @relation(fields: [telecharge_par], references: [id])
+  categorie          CategorieTexteOfficiel @relation(fields: [id_categorie], references: [id])
+}
+
+model CategorieTexteOfficiel {
+  id                 Int       @id @default(autoincrement())
+  nom                String    @unique // Nom de la catégorie (ex: "PV Réunion", "Décisions")
+  description        String?   // Description de la catégorie
+  
+  // Informations système
+  cree_par           Int       // ID du secrétaire qui a créé la catégorie
+  cree_le            DateTime  @default(now())
+  modifie_le         DateTime  @updatedAt
+  est_actif          Boolean   @default(true) // True si la catégorie est active
+  
+  // Relations
+  createur           Utilisateur @relation(fields: [cree_par], references: [id])
+  textes_officiels   TexteOfficiel[] // Textes officiels de cette catégorie
+}
+
+model AmendmentProfil {
+  id                    Int       @id @default(autoincrement())
+  id_membre             Int       // ID du membre qui soumet l'amendement
+  numero_reference      String    @unique // Référence unique (ex: "AMD-2025-001")
+  type_amendment        TypeAmendment // Type d'amendement
+  statut                StatutAmendment @default(EN_ATTENTE)
+  
+  // Données avant modification (snapshot)
+  donnees_avant         Json      // État actuel du profil avant amendement
+  
+  // Données demandées (nouvelles valeurs)
+  donnees_demandees     Json      // Nouvelles données demandées par le membre
+  
+  // Champs modifiés (pour faciliter l'affichage)
+  champs_modifies       String[]  // Liste des champs qui vont changer
+  
+  // Justification et documents
+  raison_modification   String    // Raison de la modification (ex: "Déménagement", "Mariage")
+  documents_justificatifs String[] // URLs Cloudinary des documents de justification
+  commentaire_membre    String?   // Commentaire optionnel du membre
+  
+  // Traitement par le secrétaire
+  traite_par            Int?      // ID du secrétaire qui traite
+  traite_le             DateTime? // Date de traitement
+  commentaire_secretaire String?  // Commentaire du secrétaire
+  raison_rejet          String?   // Raison du rejet si applicable
+  
+  // Métadonnées
+  soumis_le             DateTime  @default(now())
+  modifie_le            DateTime  @updatedAt
+  
+  // Relations
+  membre                Utilisateur @relation("MembreAmendments", fields: [id_membre], references: [id])
+  secretaire            Utilisateur? @relation("SecretaireAmendments", fields: [traite_par], references: [id])
+}
+
+enum Statut {
+  EN_ATTENTE
+  APPROUVE
+  REJETE
+}
+
+enum Role {
+  MEMBRE
+  SECRETAIRE_GENERALE
+  PRESIDENT
+}
+
+enum TypeAmendment {
+  MINEUR             // Changements mineurs (adresse, téléphone, email)
+  MAJEUR             // Changements majeurs (nom, documents officiels)
+  FAMILIAL           // Changements familiaux (conjoint, enfants)
+  PROFESSIONNEL      // Changements professionnels (employeur, profession)
+}
+
+enum StatutAmendment {
+  EN_ATTENTE         // En attente de traitement
+  APPROUVE           // Approuvé et appliqué
+  REJETE             // Rejeté par le secrétaire
+  ANNULE             // Annulé par le membre
+}
+
+
