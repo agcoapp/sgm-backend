@@ -23,12 +23,7 @@ const { specs, swaggerUi } = require('./config/swagger');
 
 const app = express();
 // CORS configuration
-app.use(cors({
-  origin: process.env.FRONTEND_URL?.split(',') || ['http://localhost:3001', 'http://localhost:3000'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  credentials: true,
-  optionsSuccessStatus: 200 // For legacy browser support
-}));
+app.use(cors());
 
 // Trust proxy for accurate IP addresses (important for rate limiting)
 app.set('trust proxy', 1);
