@@ -11,7 +11,7 @@ async function main() {
 
   // Create a production president user
   const president = await prisma.utilisateur.upsert({
-    where: { email: 'president@sgm-gabon.org' },
+    where: { nom_utilisateur: 'president.sgm' },
     update: {},
     create: {
       prenoms: 'Lamine',
@@ -43,7 +43,7 @@ async function main() {
 
   // Create a production secretary user
   const secretary = await prisma.utilisateur.upsert({
-    where: { email: 'secretaire@sgm-gabon.org' },
+    where: { nom_utilisateur: 'secretaire.sgm' },
     update: {},
     create: {
       prenoms: 'Mesmin',
